@@ -34,7 +34,6 @@ enclosed by '"' lines
 terminated by '\n'
 ignore 1 lines;
 
-
 update deliveries set batting_team = 'Rising Pune Supergiants' where batting_team = 'Rising Pune Supergiant';
 update deliveries set bowling_team = 'Rising Pune Supergiants' where bowling_team = 'Rising Pune Supergiant';
 update deliveries set batting_team = (select team_short_name from teams where deliveries.batting_team = teams.team_name);
@@ -57,13 +56,23 @@ update deliveries set player_dismissed = null where player_dismissed = '';
 update deliveries set dismissal_kind= null where dismissal_kind = '';
 update deliveries set fielder = null where fielder = '\r';
 
+
 -- duplicate balls or 10th ball error
 select match_id, inning, `over`, ball, count(ball) from deliveries group by match_id, inning, `over`, ball having count(ball) > 1; 
-delete from deliveries where ball_id in (162806,162807,162871,162965,166611,167991,168081,169405,170111,170112,170118,170120,170121,171643,171686,172217,173345,174899,175559,175690,176029,177873,178862 ); -- duplicate balls
+-- Overs with >6 legal deliveries - extras balls considered normal balls
+select match_id, inning,`over`, count(ball)-6, max(ball_id) from deliveries where wide_runs = 0 and noball_runs = 0 group by match_id, inning, `over` having count(ball) >6;
+ 
+delete from deliveries where ball_id in (16897,162806,162807,162871,162965,166611,167991,168081,169405,170111,170112,170118,170120,170121,171643,171686,172217,173345,174899,175559,175690,176029,177873,178862 ); -- duplicate balls
 UPDATE deliveries SET ball = 10 WHERE ball_id in (3716,19503,23669,49605,52179,79215,86626,110667,126783); -- 16,83,102, 210,221,336,367,467,534 - 10th ball error
+delete from deliveries where ball_id in (16897,30943,52947,151390,153679,159867,165874,166713); -- bizarre 7th ball in the source website
+update deliveries set player_dismissed = 'JJ Roy', dismissal_kind = 'stumped', fielder = 'DK Karthik', extra_runs = 1, wide_runs = 1 where ball_id = 153404;
+update deliveries set fielder = '(sub) JP Duminy' where ball_id = 153677;
+update deliveries set player_dismissed = 'Mandeep Singh', dismissal_kind = 'stumped', fielder = 'IS Kishan', extra_runs = 1, wide_runs = 1 where ball_id = 153676;
 
--- 11413, 11323 (wickets have fallen but not registered in dataset+ extras balls considered normal balls); 
-select match_id, inning,`over`, count(ball)-6 from deliveries where wide_runs = 0 and noball_runs = 0 group by match_id, inning, `over` having count(ball) >6; -- extras balls considered normal balls
+-- 11413, 11323 - wickets have fallen but not registered in dataset+ extras balls considered normal balls
+update deliveries set player_dismissed = 'C de Grandhomme', dismissal_kind = 'run out', fielder = 'B Kumar',batsman_runs = 2,total_runs = 3, extra_runs = 1, noball_runs = 1 where ball_id = 167430; -- (includes extra runs duplicated in batsman_runs and total_runs)
+update deliveries set player_dismissed = 'DJ Hooda', dismissal_kind = 'run out', fielder = 'RR Pant',total_runs = 2, extra_runs = 1, wide_runs = 1 where ball_id = 178465; -- (includes extra runs duplicated in batsman_runs and total_runs)
+update deliveries set batsman_runs = 0, bye_runs = 3, extra_runs = 1, noball_runs = 1 where ball_id = 172382; -- (does not include extra runs duplicated in batsman_runs and total_runs)
 
 -- wide runs added to batsman runs as well hence batsman runs = 0 for seasons > 2016 --> saare extras batsman runs mei add ho rahe h, to baaki cases mei batsman_runs = batsman_runs - extra_runs
 -- update deliveries set batsman_runs = 0, total_runs = extra_runs where wide_runs > 0 and match_id > 7890;
