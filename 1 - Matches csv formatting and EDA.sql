@@ -116,10 +116,10 @@ alter table matches add column `time` varchar(5) default 'night' after date,
 					add column team2_match_type varchar(10) default 'neutral' after team1_match_type,
                     add column team1_runs mediumint default 0 after winner,
                     add column team1_wickets smallint default 0 after team1_runs,
-                    add column team1_overs DECIMAL(2,1) default 0.0 after team1_wickets,
+                    add column team1_overs DECIMAL(3,1) default 0.0 after team1_wickets,
                     add column team2_runs mediumint default 0 after team1_overs,
                     add column team2_wickets smallint default 0 after team2_runs,
-                    add column team2_overs DECIMAL(2,1) default 0.0 after team2_wickets;
+                    add column team2_overs DECIMAL(3,1) default 0.0 after team2_wickets;
 
 update matches as t1 join (select date, min(match_id) min_id from matches group by date having count(match_id) > 1) as t2 on t1.match_id = t2.min_id set time = 'day'; 
 
@@ -127,6 +127,7 @@ create temporary table matches2 (final_date date not null);
 insert into matches2
 select max(date) from matches group by season order by date;
 update matches as t1 set team1_match_type = 'final', team2_match_type = 'final' where date in (select * from matches2); 
+drop table matches2;
 
 update matches set team1_match_type = '3rd place', team2_match_type = '3rd place' where match_id = 233;
 update matches set team1_match_type = 'semifinals', team2_match_type = 'semifinals' where team1_match_type != 'final' and ((date> '2008-05-28' and season = 2008) or (date> '2009-05-21' and season = 2009) or (date> '2010-04-19' and season = 2010));
@@ -183,3 +184,14 @@ update matches set team1_match_type = case
         else 'neutral'
     end where team1_match_type = 'neutral' and season!= 2009;
 
+-- updating match totals (requires cleaning and EDA of deliveries)
+update matches as m join (select match_id, sum(total_runs) as total1 from deliveries where inning = 1 group by match_id) as d on m.match_id = d.match_id set team1_runs = total1;
+update matches as m join (select match_id, sum(total_runs) as total2 from deliveries where inning = 2 group by match_id) as d on m.match_id = d.match_id set team2_runs = total2;
+
+-- updating match overs (can be combined by joining with 2 subqueries)
+update matches as m join (select match_id, floor(count(ball)/6) + round((count(ball)%6)/10,1) as overs from deliveries where wide_runs=0 and noball_runs=0 and inning=2 group by match_id) as d on m.match_id = d.match_id set team2_overs = overs;
+update matches as m join (select match_id, floor(count(ball)/6) + round((count(ball)%6)/10,1) as overs from deliveries where wide_runs=0 and noball_runs=0 and inning=1 group by match_id) as d on m.match_id = d.match_id set team1_overs = overs;
+
+--  updating wickets fallen 
+update matches as m join (select match_id, count(ball) as wickets from deliveries where player_dismissed is not null and inning =1 and dismissal_kind != 'retired hurt' group by match_id) as d on m.match_id = d.match_id set team1_wickets = wickets;
+update matches as m join (select match_id, count(ball) as wickets from deliveries where player_dismissed is not null and inning =2 and dismissal_kind != 'retired hurt' group by match_id) as d on m.match_id = d.match_id set team2_wickets = wickets;

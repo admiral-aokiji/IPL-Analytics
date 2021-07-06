@@ -1,6 +1,5 @@
 drop table if exists deliveries;
 
--- jugaad for automatic PK generation
 CREATE TABLE if not exists `deliveries` (
   `ball_id` int unsigned NOT NULL AUTO_INCREMENT,
   `match_id` int unsigned NOT NULL,
@@ -36,7 +35,7 @@ ignore 1 lines;
 
 update deliveries set batting_team = 'Rising Pune Supergiants' where batting_team = 'Rising Pune Supergiant';
 update deliveries set bowling_team = 'Rising Pune Supergiants' where bowling_team = 'Rising Pune Supergiant';
-update deliveries set batting_team = (select team_short_name from teams where deliveries.batting_team = teams.team_name);
+update deliveries,teams set batting_team = team_short_name where deliveries.batting_team = teams.team_name;
 update deliveries set bowling_team = (select team_short_name from teams where deliveries.bowling_team = teams.team_name);
 
 -- inserting missing crucial super over balls, solving imcorrect data entry in case of super overs and removing the is_super_over column itself to trim the table size
@@ -56,23 +55,40 @@ update deliveries set player_dismissed = null where player_dismissed = '';
 update deliveries set dismissal_kind= null where dismissal_kind = '';
 update deliveries set fielder = null where fielder = '\r';
 
-
 -- duplicate balls or 10th ball error
-select match_id, inning, `over`, ball, count(ball) from deliveries group by match_id, inning, `over`, ball having count(ball) > 1; 
--- Overs with >6 legal deliveries - extras balls considered normal balls
-select match_id, inning,`over`, count(ball)-6, max(ball_id) from deliveries where wide_runs = 0 and noball_runs = 0 group by match_id, inning, `over` having count(ball) >6;
- 
-delete from deliveries where ball_id in (16897,162806,162807,162871,162965,166611,167991,168081,169405,170111,170112,170118,170120,170121,171643,171686,172217,173345,174899,175559,175690,176029,177873,178862 ); -- duplicate balls
-UPDATE deliveries SET ball = 10 WHERE ball_id in (3716,19503,23669,49605,52179,79215,86626,110667,126783); -- 16,83,102, 210,221,336,367,467,534 - 10th ball error
-delete from deliveries where ball_id in (16897,30943,52947,151390,153679,159867,165874,166713); -- bizarre 7th ball in the source website
-update deliveries set player_dismissed = 'JJ Roy', dismissal_kind = 'stumped', fielder = 'DK Karthik', extra_runs = 1, wide_runs = 1 where ball_id = 153404;
-update deliveries set fielder = '(sub) JP Duminy' where ball_id = 153677;
-update deliveries set player_dismissed = 'Mandeep Singh', dismissal_kind = 'stumped', fielder = 'IS Kishan', extra_runs = 1, wide_runs = 1 where ball_id = 153676;
+select match_id, inning, `over`, ball,max(ball_id), count(ball) from deliveries group by match_id, inning, `over`, ball having count(ball) > 1; 
+-- Out of these, for balls in seasons < 2018, they are the 10th balls of the over but have been labelled as 1
+UPDATE deliveries SET ball = 10 WHERE ball_id in (3716,19503,23669,49605,52179,79215,86626,110667,126783); 
+-- The rest are just duplicate balls (and are balls in seasons 2018 and 2019, so can be deleted using season-filter query) so deleting them
+delete from deliveries where ball_id in (162806,162807,162871,162965,166611,167991,168081,169405,170111,170112,170118,170120,170121,171643,171686,172217,173345,174899,175559,175690,176029,177873,178862 );
 
--- 11413, 11323 - wickets have fallen but not registered in dataset+ extras balls considered normal balls
-update deliveries set player_dismissed = 'C de Grandhomme', dismissal_kind = 'run out', fielder = 'B Kumar',batsman_runs = 2,total_runs = 3, extra_runs = 1, noball_runs = 1 where ball_id = 167430; -- (includes extra runs duplicated in batsman_runs and total_runs)
-update deliveries set player_dismissed = 'DJ Hooda', dismissal_kind = 'run out', fielder = 'RR Pant',total_runs = 2, extra_runs = 1, wide_runs = 1 where ball_id = 178465; -- (includes extra runs duplicated in batsman_runs and total_runs)
-update deliveries set batsman_runs = 0, bye_runs = 3, extra_runs = 1, noball_runs = 1 where ball_id = 172382; -- (does not include extra runs duplicated in batsman_runs and total_runs)
+-- Overs without 6 legal deliveries - extras balls considered normal balls(>6) or some balls are missing(<6)
+select t1.match_id, t1.inning, t1.max_over, t2.`over`,minBall, maxBall, t2.left_over_balls, t1.max_over =  t2.`over` as test from
+(select match_id, inning, max(`over`) as max_over from deliveries group by match_id, inning) as t1 join 
+(select match_id, inning,`over`,min(ball_id) as minBall, max(ball_id) as maxBall, count(ball)-6 as left_over_balls from deliveries where wide_runs = 0 and noball_runs = 0 group by match_id, inning, `over` having count(ball) != 6) as t2 
+on t1.match_id = t2.match_id and t1.inning = t2.inning where (t1.max_over =  t2.`over`) = 0;
 
--- wide runs added to batsman runs as well hence batsman runs = 0 for seasons > 2016 --> saare extras batsman runs mei add ho rahe h, to baaki cases mei batsman_runs = batsman_runs - extra_runs
--- update deliveries set batsman_runs = 0, total_runs = extra_runs where wide_runs > 0 and match_id > 7890;
+-- inserting balls where over has 5 legal deliveries AFTER verifying with match commentaries and players' stats 
+insert into deliveries (match_id, inning, batting_team, bowling_team, `over`, ball, batsman, non_striker, bowler, wide_runs, bye_runs, legbye_runs, noball_runs, penalty_runs, batsman_runs, extra_runs, total_runs, player_dismissed, dismissal_kind, fielder) values 
+(65,1,'KXIP','RR',8,8,'JR Hopes','Yuvraj Singh','D Salunkhe',0,0,0,0,0,0,0,0,NULL,NULL,NULL),
+(93,2,'RR','DC',15,8,'AD Mascarenhas','SR Watson','A Mishra',0,0,0,0,0,0,0,0,NULL,NULL,NULL),
+(239,1,'KXIP','RPS',6,4,'AM Nayar','Sunny Singh','M Kartik',0,0,0,0,0,0,0,0,NULL,NULL,NULL);
+-- Deleting bizarre 7th ball in the source website that have been duplicated/ are dot balls
+delete from deliveries where ball_id in (16897,30944,52947,151390,159867,166713); -- 72,133, 224, 7897,7933,11145
+
+-- Updating cases where wickets have fallen and/or extras_ball and havent been registered into the file, leading to 7 legal deliveries balls 
+update deliveries set player_dismissed = 'JJ Roy', dismissal_kind = 'stumped', fielder = 'KD Karthik', extra_runs = 1, wide_runs = 1 where ball_id = 153404; -- 7906
+update deliveries set player_dismissed = 'Mandeep Singh', dismissal_kind = 'stumped', fielder = 'Ishan Kishan', extra_runs = 1, wide_runs = 1 where ball_id = 153676; -- 7907
+update deliveries set player_dismissed = 'SR Watson', dismissal_kind = 'stumped', fielder = 'RR Pant',extra_runs = 1, wide_runs = 1,batsman_runs = 0, total_runs = 1 where ball_id = 165872; -- 11141, -- (does not include extra runs duplicated in batsman_runs and total_runs)
+update deliveries set player_dismissed = 'C de Grandhomme', dismissal_kind = 'run out', fielder = 'B Kumar',batsman_runs = 1,total_runs = 2, extra_runs = 1, noball_runs = 1 where ball_id = 167430; -- 11147, (includes extra runs duplicated in batsman_runs and total_runs)
+update deliveries set batsman_runs = 0, bye_runs = 3, extra_runs = 1, noball_runs = 1 where ball_id = 172382; -- 11323, (does not include extra runs duplicated in batsman_runs and total_runs)
+update deliveries set player_dismissed = 'S Dhawan', dismissal_kind = 'stumped', fielder = 'W Saha',extra_runs = 1, wide_runs = 1,batsman_runs = 0, total_runs = 1 where ball_id = 178514; -- 11413 (does not include extra runs duplicated in batsman_runs and total_runs) NOTE: not included in counting legal ball deliveries as it occurs in the max/last over
+update deliveries set player_dismissed = 'DJ Hooda', dismissal_kind = 'run out', fielder = 'RR Pant',total_runs = 2, extra_runs = 1, wide_runs = 1 where ball_id = 178465; -- 11413, (includes extra runs duplicated in batsman_runs and total_runs)
+
+-- for seasons > 2017, extra_runs wrongly added to batsman runs as well .. hence, batsman_runs = batsman_runs - extra_runs
+update deliveries set batsman_runs = batsman_runs - wide_runs - noball_runs - legbye_runs - bye_runs where match_id > 800 and ball_id not in (165872,172382,178514);
+update deliveries set total_runs = batsman_runs + extra_runs where match_id > 800 and ball_id not in (165872,172382,178514);
+
+-- balls with caught out wickets but fielder column is null
+update deliveries set fielder = 'JP Duminy (sub)' where ball_id = 153677; -- 7907
+-- 27 rows without fielder name but run out or catch out
