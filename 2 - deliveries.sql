@@ -92,3 +92,5 @@ update deliveries set total_runs = batsman_runs + extra_runs where match_id > 80
 -- balls with caught out wickets but fielder column is null
 update deliveries set fielder = 'JP Duminy (sub)' where ball_id = 153677; -- 7907
 -- 27 rows without fielder name but run out or catch out
+
+alter TABLE super_over_balls drop COLUMN `over`, drop COLUMN is_super_over; 
