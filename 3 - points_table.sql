@@ -54,3 +54,41 @@ select season, count(case when winner != 'KKR' then null else 1 end) wins,
     sum(case when batting_team1 != 'KKR' then team1_oversh when batting_team2 != 'KKR' then team2_overs else null end) away_overs, -- correct sum of balls
     count(case when toss_winner = 'KKR' then 1 else null end) tosses_won
     from matches where (batting_team1 = 'KKR' or batting_team2 = 'KKR') and season = 2009 group by season;
+
+
+
+
+
+-- create temporary table away_stats;
+-- select season, count(case when winner != 'KKR' then null else 1 end) wins, 
+-- 	count(case when result_type != 'no result' then null else 1 end) no_results, 
+--     count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses, 
+--     sum(case when team1_match_type = 'away' then team1_runs when team2_match_type = 'away' then team2_runs else null end) away_runs, 
+--     sum(case when team1_match_type = 'away' then team1_wickets when team2_match_type = 'away' then team2_wickets else null end) away_wickets, 
+--     sum(case when team1_match_type = 'away' then floor(team1_overs) when team2_match_type = 'away' then team2_overs else null end) away_overs -- correct sum of balls
+--     from matches where (batting_team1 = 'KKR' and team1_match_type = 'away') or (batting_team2 = 'KKR' and team2_match_type = 'away') and season != 2014 group by season;
+
+-- create temporary table home_stats;    
+-- select season, count(case when winner != 'KKR' then null else 1 end) wins, 
+-- 	count(case when result_type != 'no result' then null else 1 end) no_results, 
+--     count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses, 
+--     sum(case when team1_match_type = 'home' then team1_runs when team2_match_type = 'home' then team2_runs else null end) away_runs, 
+--     sum(case when team1_match_type = 'home' then team1_wickets when team2_match_type = 'home' then team2_wickets else null end) away_wickets, 
+--     sum(case when team1_match_type = 'home' then floor(team1_overs) when team2_match_type = 'home' then team2_overs else null end) away_overs -- correct sum of balls
+--     from matches where (batting_team1 = 'KKR' and team1_match_type = 'home') or (batting_team2 = 'KKR' and team2_match_type = 'home') and season != 2014 group by season;
+
+-- 2009 and 2014 (doubtful)
+-- select season, count(case when winner != 'KKR' then null else 1 end) wins, 
+-- 	count(case when result_type != 'no result' then null else 1 end) no_results, 
+--     count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses,
+--     sum(case when batting_team1 = 'KKR' then team1_runs when batting_team2 = 'KKR' then team2_runs else null end) runs, 
+--     sum(case when batting_team1 = 'KKR' then team1_wickets when batting_team2 = 'KKR' then team2_wickets else null end) wickets, 
+--     sum(case when batting_team1 = 'KKR' then floor(team1_overs) when batting_team2 = 'KKR' then team2_overs else null end) overs, -- correct sum of balls
+--     sum(case when batting_team1 != 'KKR' then team1_runs when batting_team2 != 'KKR' then team2_runs else null end) away_runs, 
+--     sum(case when batting_team1 != 'KKR' then team1_wickets when batting_team2 != 'KKR' then team2_wickets else null end) away_wickets, 
+--     sum(case when batting_team1 != 'KKR' then team1_oversh when batting_team2 != 'KKR' then team2_overs else null end) away_overs, -- correct sum of balls
+--     count(case when toss_winner = 'KKR' then 1 else null end) tosses_won
+--     from matches where (batting_team1 = 'KKR' or batting_team2 = 'KKR') and season = 2009 group by season;
+
+-- select season, batting_team1, sum(team1_runs), sum(team1_overs), count(*) from matches where team1_match_type not in ('final','semifinals', 'eliminator','3rd place') group by season, batting_team1;    
+    

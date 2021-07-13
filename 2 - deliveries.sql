@@ -94,3 +94,5 @@ update deliveries set fielder = 'JP Duminy (sub)' where ball_id = 153677; -- 790
 -- 27 rows without fielder name but run out or catch out
 
 alter TABLE super_over_balls drop COLUMN `over`, drop COLUMN is_super_over; 
+-- alter TABLE deliveries drop COLUMN batting_team, drop COLUMN bowling_team; 
+-- alter TABLE super_over_balls drop COLUMN batting_team, drop COLUMN bowling_team; 

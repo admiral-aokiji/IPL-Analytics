@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS match_batsman_scorecards (
   bowler VARCHAR(45) NULL,
   fielder VARCHAR(45) NULL,
   runs_on_board SMALLINT UNSIGNED default 0,
-  ball_on_arrival DECIMAL(3,1) default 0,
-  ball_on_dismissal DECIMAL(3,1) default 0,
+  overs_on_arrival DECIMAL(3,1) default 0,
+  overs_on_dismissal DECIMAL(3,1) default 0,
   end_partner_runs SMALLINT default 0,
   end_partner_balls SMALLINT default 0,
   dot_balls SMALLINT default 0,
@@ -80,9 +80,13 @@ call getOverStats(251,500);
 call getOverStats(501,12000);
 
 ##########################################################################################################
--- USE THE FOLLOWING QUERIES TO CREATE TABLE IF DOES NOT EXISTS match_bowler_scorecards
--- To consider half overs bowled due to injuries, sum of fours, sixes, singles, doubles, triples, dots, legbyes, byes - will give number of balls bowled.However, in instances of 2nd innings, the final over will not be completed. So join with max cover column and verify the rest cases. Add rollup to verify overs bowled in an innings of a match are equal to that in matches column
-select match_id, inning, bowler, count(overs), sum(runs), sum(wickets), sum(dot_balls),sum(fours) + sum(sixes) as boundaries, sum(dot_balls)+ sum(fours) + sum(sixes)+sum(singles) + sum(doubles) + sum(triples) + sum(bye_runs) + sum(legbye_runs) as balls, sum(dot_balls)+ sum(fours) + sum(sixes)+sum(singles) + sum(doubles) + sum(triples) + sum(bye_runs) + sum(legbye_runs) = count(overs)*6 as test from match_over_scorecards group by match_id, inning, bowler; 
+
+CREATE TABLE IF NOT EXISTS match_bowler_scorecards
+select match_id, inning, bowler,(sum(dot_balls)+ sum(fours) + sum(sixes)+sum(singles) + sum(doubles) + sum(triples) + sum(bye_runs) + sum(legbye_runs))  as balls, sum(runs) runs_conceded, sum(wickets) wickets, sum(dot_balls) dots, sum(singles) singles, sum(fours) fours, sum(sixes) sixes, sum(extras) extras, sum(wide_runs) wide_runs, sum(noball_runs) noball_runs from match_over_scorecards group by match_id, inning, bowler; 
+-- automatic column value generation for overs as concat(floor(balls/6),'.',balls%6)
+-- add columns bowled, caught, lbw, stumped, maidens by creating a view of all dismissals and one for maidens
+-- add super_overs with innings = 3 or 4
+-- verify whether overs bowled in each innings matches with team1_overs and team2_overs of matches
 
 -- :) DINDA ACADEMY (take average of how many boundaries these bowlers concede in a match vs the best bowlers)
 select match_id, inning, bowler, count(overs), sum(runs), sum(wickets), sum(dot_balls),sum(fours) + sum(sixes) as boundaries from match_over_scorecards group by match_id, inning, bowler having sum(runs) >= 50; 
