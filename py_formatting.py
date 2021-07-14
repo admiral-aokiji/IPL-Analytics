@@ -1,6 +1,8 @@
 import mysql.connector as msql
 from dotenv import load_dotenv
 import os
+import logging
+# import time
 
 class Ball():
     def __init__(self,ball):
@@ -20,26 +22,11 @@ class Ball():
         self.batsman_runs = ball[13]
         self.extra_runs = ball[14]
         self.total_runs = ball[15]
-        self.player_dismissed = ball[16]
-        self.dismissal_kind = ball[17]
-        self.fielder = ball[18]
+        self.player_dismissed = ball[16] if ball[16] else ''
+        self.dismissal_kind = ball[17] if ball[17] else ''
+        self.fielder = ball[18] if ball[18] else ''
+        self.batsmen = (ball[5],ball[6])
     
-
-def checkStrike(pBall, cBall):
-    # over change, caught or run out, single, triple, odd legbyes, odd byes, even wide runs, 4 also if overthrows (generate flags)
-    pass
-
-
-def checkWickets(cBall, nBall):
-    batsmen = [nBall.batsman, nBall.non_striker]
-    if (cBall.batsman not in batsmen) or (cBall.non_striker not in batsmen):
-        if cBall.player_dismissed:
-            return True
-        else:
-            print(f'player dismissal not recorded for {cBall.ball_id}')
-            # Generate UPDATE query and append it to deliveries.sql ?
-            return True
-
 
 load_dotenv()
 HOST = os.getenv('HOST')
@@ -55,82 +42,117 @@ mydb = msql.connect(
     database=DB
 )
 mycursor = mydb.cursor()
-
-# revert to orginal table after testing
-db_sql = "SELECT * from deliveries2 limit 15;"
-try:
-    mycursor.execute(db_sql)
-    balls = mycursor.fetchall()
-except msql.Error as e:
-    print(str(e))
-
-# 
-# check strike pe sahi banda according to runs
-# check wicket fallen if batsman change suddenly
-# striker_runs, striker_balls, non_striker_runs, non_striker_balls, team_runs, team_overs, actual ball? (can be extracted from team_overs)
+logging.basicConfig(level = logging.INFO, filename='app.log', format=f' %(message)s')
 
 
-print(vars(Ball(balls[0])))
-miCombo = [0,0]
-teamRuns = 0
-teamOvers = 0.0
-teamWickets = 0
-bat1_runs = 0
-bat1_balls = 0
-bat2_runs = 0
-bat2_balls = 0
-bat1 = '-'
-bat2 = '-'
-dismiss_bat = '-'
-dismiss_type = '-'
-dismiss_fielder = '-'
-dismiss_bowler = '-'
-print(miCombo)
-for i in range(len(balls)-1):
-    
-    # Check for innings change
-    if miCombo != [Ball(balls[i]).match_id, Ball(balls[i]).inning]:
-        print(f'miCombo changed at ballID - {Ball(balls[i]).ball_id} with {miCombo} ')
-        miCombo = [Ball(balls[i]).match_id, Ball(balls[i]).inning]
-        teamRuns = 0
-        teamOvers = 0.0
-        teamWickets = 0
-        bat1_runs = 0
-        bat1_balls = 0
-        bat2_runs = 0
-        bat2_balls = 0
-        bat1 = Ball(balls[i]).batsman
-        bat2 = Ball(balls[i]).non_striker
-        dismiss_bat = '-'
-        dismiss_type = '-'
-        dismiss_fielder = '-'
-        dismiss_bowler = '-'
+def updateDeliveries(startID):
 
-    teamRuns += Ball(balls[i]).total_runs
-    # check if delivery is legal
-    if Ball(balls[i]).wide_runs == 0 and Ball(balls[i]).noball_runs == 0 and str(teamOvers)[-1] != '5':
-        # check if wicket taken 
-        # check who was dismissed and update 1. bat1 or bat2 attributes as 0, 2. update dismiss attributes. Dismissal ball will have +0.5 
-        # change bat1 or 2 
-        # check strike change and update
-        teamOvers += 0.5
-    elif Ball(balls[i]).wide_runs == 0 and Ball(balls[i]).noball_runs == 0 and str(teamOvers)[-1] == '6':
-        # check if wicket taken
-        # check who was dismissed and update 1. bat1 or bat2 attributes as 0, 2. update dismiss attributes. Dismissal ball will have +0.1
-        # change bat1 or 2
-        # check strike change and update
-        teamOvers += 0.1
-        bat1_balls += 1
-    else: 
-        # check if wicket taken
-        # check who was dismissed and update 1. bat1 or bat2 attributes as 0, 2. update dismiss attributes. Dismissal ball will have no change in value i.e. previous value retained
-        # change bat1 or 2
-        # check strike change and update
-        pass
+    db_sql = f"SELECT * from deliveries2 where match_id = {startID}  ;"
+    try:
+        mycursor.execute(db_sql)
+        balls = mycursor.fetchall()
+    except msql.Error as e:
+        logging.exception("Exception occurred")
 
-    test1 = checkStrike(Ball(balls[i]),Ball(balls[i+1]))
-    
-    print(f'{Ball(balls[i]).ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} || {bat1} ({bat1_runs},{bat1_balls}) | {bat2} ({bat2_runs},{bat2_balls})')
-    # Add dismissal features
+    miCombo = [0, 0]
+    teamRuns = 0
+    teamOvers = 0.0
+    teamWickets = 0
+    batsmen = [{
+        'id': 1,
+        'runs': 0,
+        'balls': 0,
+        'name':'-'
+    },{
+        'id': 2,
+        'runs': 0,
+        'balls': 0,
+        'name':'-'
+    }] 
 
-# iss hi file se match_batsman_scorecard mei daalne ka provision bana do but run na karo
+    def checkWickets(cBall, nBall,batsman):
+        if (nBall.inning != cBall.inning):
+            logging.warning('Yes')
+        nonlocal teamWickets, wicket_string
+        teamWickets += 1
+        wicket_string = ' || W ' + batsman['name'] + ' (' + str(batsman['runs']) + ','+str(batsman['balls'])+') ' + cBall.dismissal_kind + ' ' + cBall.fielder + 'b ' + cBall.bowler
+        other_batsman = [bat for bat in batsmen if batsman['id'] != bat['id']]
+        if other_batsman[0]['name'] == nBall.batsman and (teamOvers*10)%10 != 0:
+            batsman['name'] = nBall.non_striker
+        elif other_batsman[0]['name'] == nBall.batsman and (teamOvers*10) % 10 == 0:
+            batsman['name'] = nBall.batsman
+        elif other_batsman[0] == nBall.non_striker and (teamOvers*10) % 10 != 0:
+            batsman['name'] = nBall.non_striker
+        else:
+            batsman['name'] = nBall.batsman
+        batsman['runs'] = 0
+        batsman['balls'] = 0
+        if not cBall.player_dismissed and (nBall.inning == cBall.inning):
+            logging.warning(f'player dismissal not recorded for {cBall.ball_id}')
+            # Generate UPDATE query and append it to deliveries.sql ?
+            # update deliveries set player_dismissed = X where ball_id = X;
+
+    for i in range(len(balls)-1):
+        
+        wicket_string, bye_string, legbye_string = '', '', ''
+        cBall = Ball(balls[i])
+        nBall = Ball(balls[i+1])
+        
+        # Checking for innings change
+        if miCombo != [cBall.match_id, cBall.inning]:
+            miCombo = [cBall.match_id, cBall.inning]
+            logging.info(f'miCombo changed at ballID - {cBall.ball_id} with {miCombo}')
+            for bat in batsmen:
+                bat['runs'] = 0
+                bat['balls'] = 0
+            teamRuns, teamOvers, teamWickets, batsmen[0]['name'], batsmen[1]['name'] = 0, 0.0, 0, cBall.batsman, cBall.non_striker
+            # time.sleep(3)
+        
+        if batsmen[0]['name'] == batsmen[1]['name']:
+            logging.error(f'Both batsmen same at {teamOvers} ')
+            break
+
+        # Changing batsman on strike
+        if cBall.batsman != batsmen[0]['name']:
+            for key in batsmen[0]:
+                batsmen[0][key], batsmen[1][key] = batsmen[1][key], batsmen[0][key]
+
+        teamRuns += cBall.total_runs
+        batsmen[0]['runs'] += cBall.batsman_runs
+
+        # checking for legal deliveries
+        if cBall.wide_runs == 0 and cBall.noball_runs == 0:
+
+            # Updating teamOvers and checking for over change
+            if str(teamOvers)[-1] == '5':
+                teamOvers += 0.5
+            else:
+                teamOvers += 0.1
+            teamOvers = round(teamOvers, 1)
+            batsmen[0]['balls'] += 1
+
+            if (cBall.batsman not in nBall.batsmen):
+                checkWickets(cBall,nBall,batsmen[0])
+                
+            elif (cBall.non_striker not in nBall.batsmen):
+                checkWickets(cBall, nBall, batsmen[1])
+
+            if cBall.legbye_runs != 0 :
+                legbye_string = ' Legbyes ' + str(cBall.legbye_runs)
+            elif cBall.bye_runs != 0:
+                bye_string = ' Byes ' + str(cBall.bye_runs)
+            ball_string = f"{cBall.match_id}|{cBall.inning} - {cBall.ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} ||{batsmen[0]['name']} ({batsmen[0]['runs']},{batsmen[0]['balls']}) | {batsmen[1]['name']} ({batsmen[1]['runs']},{batsmen[1]['balls']})|| {cBall.total_runs}"
+            logging.info(ball_string + bye_string + legbye_string + wicket_string)
+
+        else: 
+            if (cBall.batsman not in nBall.batsmen) and (nBall.inning == cBall.inning):
+                checkWickets(cBall, nBall,batsmen[0])
+
+            elif (cBall.non_striker not in nBall.batsmen):
+                checkWickets(cBall, nBall,batsmen[1])
+            ball_string = f"{cBall.match_id}|{cBall.inning} - {cBall.ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} ||{batsmen[0]['name']} ({batsmen[0]['runs']},{batsmen[0]['balls']}) | {batsmen[1]['name']} ({batsmen[1]['runs']},{batsmen[1]['balls']})  || {cBall.total_runs} Extras - {cBall.extra_runs}"
+            logging.info(ball_string + bye_string + legbye_string + wicket_string)
+    # iss hi file se match_batsman_scorecard mei daalne ka provision bana do but run na karo
+
+
+updateDeliveries(7949)

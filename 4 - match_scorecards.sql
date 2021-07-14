@@ -86,6 +86,7 @@ select match_id, inning, bowler,(sum(dot_balls)+ sum(fours) + sum(sixes)+sum(sin
 -- automatic column value generation for overs as concat(floor(balls/6),'.',balls%6)
 -- add columns bowled, caught, lbw, stumped, maidens by creating a view of all dismissals and one for maidens
 -- add super_overs with innings = 3 or 4
+-- Verify whether balls < 25
 -- verify whether overs bowled in each innings matches with team1_overs and team2_overs of matches
 
 -- :) DINDA ACADEMY (take average of how many boundaries these bowlers concede in a match vs the best bowlers)
