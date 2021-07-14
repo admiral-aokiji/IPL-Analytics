@@ -94,5 +94,38 @@ update deliveries set fielder = 'JP Duminy (sub)' where ball_id = 153677; -- 790
 -- 27 rows without fielder name but run out or catch out
 
 alter TABLE super_over_balls drop COLUMN `over`, drop COLUMN is_super_over; 
--- alter TABLE deliveries drop COLUMN batting_team, drop COLUMN bowling_team; 
--- alter TABLE super_over_balls drop COLUMN batting_team, drop COLUMN bowling_team; 
+alter TABLE deliveries drop COLUMN batting_team, drop COLUMN bowling_team; 
+alter table deliveries2 add COLUMN striker_runs SMALLINT unsigned default 0, add COLUMN striker_balls SMALLINT default 0, add COLUMN non_striker_runs SMALLINT unsigned default 0, add COLUMN non_striker_balls SMALLINT unsigned default 0, add COLUMN team_runs SMALLINT unsigned default 0,add COLUMN team_overs decimal(3,1) default 0.0;
+
+-- Instead of manually updating each row with the new values for striker_runs, striker_balls, non_striker_runs, non_striker_balls and team_overs, reformatting the deliveries table in python and then reimporting the formatted deliveries.csv was found to be much faster (from ~10 hours to ~10 seconds).
+
+drop table if EXISTS deliveries;
+CREATE TABLE if not exists `deliveries` (
+  `ball_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `match_id` int unsigned NOT NULL,
+  `inning` int DEFAULT NULL,
+  `over` smallint NOT NULL,
+  `ball` smallint NOT NULL,
+  `batsman` varchar(30) NOT NULL,
+  `non_striker` varchar(30) NOT NULL,
+  `bowler` varchar(30) NOT NULL,
+  `wide_runs` int DEFAULT NULL,
+  `bye_runs` int DEFAULT NULL,
+  `legbye_runs` int DEFAULT 0,
+  `noball_runs` int DEFAULT 0,
+  `penalty_runs` int DEFAULT 0,
+  `batsman_runs` int DEFAULT 0,
+  `extra_runs` int DEFAULT 0,
+  `total_runs` int DEFAULT 0,
+  `player_dismissed` varchar(30) DEFAULT NULL,
+  `dismissal_kind` varchar(30) DEFAULT NULL,
+  `fielder` varchar(30) DEFAULT NULL,
+  `striker_runs` SMALLINT unsigned default 0,
+  `striker_balls` SMALLINT default 0,
+  `non_striker_runs` SMALLINT unsigned default 0,
+  `non_striker_balls` SMALLINT unsigned default 0,
+  `team_overs` decimal(3, 1) default 0.0,
+  PRIMARY KEY (`ball_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+load data local infile 'D:/work/pythonPractice/big projects/IPL Analytics/work/formatted-deliveries.csv' -- add your own path here
+into table deliveries fields terminated by ',' enclosed by '"' lines terminated by '\n' ignore 1 lines;

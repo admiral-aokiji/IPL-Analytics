@@ -54,7 +54,6 @@ select match_id, inning, batsman, sum(batsman_runs) runs, count(case when wide_r
 create TABLE deliveries2
 select * from deliveries where match_id between 7948 and 7956;
 drop table deliveries2;
-alter table deliveries2 add COLUMN striker_runs SMALLINT unsigned default 0, add COLUMN striker_balls SMALLINT default 0, add COLUMN non_striker_runs SMALLINT unsigned default 0, add COLUMN non_striker_balls SMALLINT unsigned default 0, add COLUMN team_runs SMALLINT unsigned default 0,add COLUMN team_overs decimal(3,1) default 0.0;
 select * from deliveries2; 
 
 

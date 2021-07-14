@@ -2,7 +2,8 @@ import mysql.connector as msql
 from dotenv import load_dotenv
 import os
 import logging
-# import time
+import time
+import pandas as pd
 
 class Ball():
     def __init__(self,ball):
@@ -42,12 +43,10 @@ mydb = msql.connect(
     database=DB
 )
 mycursor = mydb.cursor()
-logging.basicConfig(level = logging.INFO, filename='app.log', format=f' %(message)s')
 
+def updateDeliveries(startID, endID):
 
-def updateDeliveries(startID):
-
-    db_sql = f"SELECT * from deliveries2 where match_id = {startID}  ;"
+    db_sql = f"SELECT * from deliveries where match_id between {startID} and {endID} ;"
     try:
         mycursor.execute(db_sql)
         balls = mycursor.fetchall()
@@ -69,28 +68,34 @@ def updateDeliveries(startID):
         'balls': 0,
         'name':'-'
     }] 
+    
 
     def checkWickets(cBall, nBall,batsman):
-        if (nBall.inning != cBall.inning):
-            logging.warning('Yes')
+        if not cBall.player_dismissed:  # player_dismissed is null
+            if (nBall.match_id != cBall.match_id) or (nBall.inning != cBall.inning):
+                return 1
+            else:
+                logging.warning(f'player dismissal not recorded for {cBall.ball_id}')
         nonlocal teamWickets, wicket_string
-        teamWickets += 1
+        if cBall.dismissal_kind != 'retired hurt':
+            teamWickets += 1
         wicket_string = ' || W ' + batsman['name'] + ' (' + str(batsman['runs']) + ','+str(batsman['balls'])+') ' + cBall.dismissal_kind + ' ' + cBall.fielder + 'b ' + cBall.bowler
-        other_batsman = [bat for bat in batsmen if batsman['id'] != bat['id']]
-        if other_batsman[0]['name'] == nBall.batsman and (teamOvers*10)%10 != 0:
+        other_batsman = [bat for bat in batsmen if batsman['id'] != bat['id']] # the one who stays i.e. whose values wont change
+        if other_batsman[0]['name'] == nBall.batsman and int((teamOvers*10)%10) != 0:
             batsman['name'] = nBall.non_striker
-        elif other_batsman[0]['name'] == nBall.batsman and (teamOvers*10) % 10 == 0:
+        elif other_batsman[0]['name'] == nBall.batsman and int((teamOvers*10)%10) == 0:
+            batsman['name'] = nBall.non_striker
+        elif other_batsman[0]['name'] == nBall.non_striker and int((teamOvers*10) % 10) != 0:
             batsman['name'] = nBall.batsman
-        elif other_batsman[0] == nBall.non_striker and (teamOvers*10) % 10 != 0:
-            batsman['name'] = nBall.non_striker
         else:
             batsman['name'] = nBall.batsman
         batsman['runs'] = 0
         batsman['balls'] = 0
-        if not cBall.player_dismissed and (nBall.inning == cBall.inning):
-            logging.warning(f'player dismissal not recorded for {cBall.ball_id}')
-            # Generate UPDATE query and append it to deliveries.sql ?
-            # update deliveries set player_dismissed = X where ball_id = X;
+        if teamWickets == 10:
+            batsman['name'] = None
+            batsman['runs'] = 0
+            batsman['balls'] = 0
+        
 
     for i in range(len(balls)-1):
         
@@ -106,7 +111,6 @@ def updateDeliveries(startID):
                 bat['runs'] = 0
                 bat['balls'] = 0
             teamRuns, teamOvers, teamWickets, batsmen[0]['name'], batsmen[1]['name'] = 0, 0.0, 0, cBall.batsman, cBall.non_striker
-            # time.sleep(3)
         
         if batsmen[0]['name'] == batsmen[1]['name']:
             logging.error(f'Both batsmen same at {teamOvers} ')
@@ -124,7 +128,10 @@ def updateDeliveries(startID):
         if cBall.wide_runs == 0 and cBall.noball_runs == 0:
 
             # Updating teamOvers and checking for over change
-            if str(teamOvers)[-1] == '5':
+            if int(str(teamOvers)[-1]) > 5:
+                logging.error(f'Ball skipped or added somewhere {cBall.ball_id} ')
+                break
+            elif str(teamOvers)[-1] == '5':
                 teamOvers += 0.5
             else:
                 teamOvers += 0.1
@@ -142,7 +149,7 @@ def updateDeliveries(startID):
             elif cBall.bye_runs != 0:
                 bye_string = ' Byes ' + str(cBall.bye_runs)
             ball_string = f"{cBall.match_id}|{cBall.inning} - {cBall.ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} ||{batsmen[0]['name']} ({batsmen[0]['runs']},{batsmen[0]['balls']}) | {batsmen[1]['name']} ({batsmen[1]['runs']},{batsmen[1]['balls']})|| {cBall.total_runs}"
-            logging.info(ball_string + bye_string + legbye_string + wicket_string)
+            logging.debug(ball_string + bye_string + legbye_string + wicket_string)
 
         else: 
             if (cBall.batsman not in nBall.batsmen) and (nBall.inning == cBall.inning):
@@ -151,8 +158,61 @@ def updateDeliveries(startID):
             elif (cBall.non_striker not in nBall.batsmen):
                 checkWickets(cBall, nBall,batsmen[1])
             ball_string = f"{cBall.match_id}|{cBall.inning} - {cBall.ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} ||{batsmen[0]['name']} ({batsmen[0]['runs']},{batsmen[0]['balls']}) | {batsmen[1]['name']} ({batsmen[1]['runs']},{batsmen[1]['balls']})  || {cBall.total_runs} Extras - {cBall.extra_runs}"
-            logging.info(ball_string + bye_string + legbye_string + wicket_string)
-    # iss hi file se match_batsman_scorecard mei daalne ka provision bana do but run na karo
+            logging.debug(ball_string + bye_string + legbye_string + wicket_string)
+        
+        balls[i] = list(balls[i][:19])
+        balls[i].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamOvers])
 
+    last_ball = Ball(balls[len(balls)-1])
+    # swap batsmen according to matching names
+    if last_ball.batsman != batsmen[0]['name']:
+        for key in batsmen[0]:
+            batsmen[0][key], batsmen[1][key] = batsmen[1][key], batsmen[0][key]
+    teamRuns += last_ball.total_runs
+    batsmen[0]['runs'] += last_ball.batsman_runs
+    if last_ball.player_dismissed and last_ball.player_dismissed != 'retired hurt':
+        teamWickets += 1
+    if last_ball.wide_runs == 0 and last_ball.noball_runs == 0:
+        if str(teamOvers)[-1] == '5':
+            teamOvers += 0.5
+        else:
+            teamOvers += 0.1
+        teamOvers = round(teamOvers, 1)
+        batsmen[0]['balls'] += 1
+    ball_string = f"{last_ball.match_id}|{last_ball.inning} - {last_ball.ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} ||{batsmen[0]['name']} ({batsmen[0]['runs']},{batsmen[0]['balls']}) | {batsmen[1]['name']} ({batsmen[1]['runs']},{batsmen[1]['balls']})  || {cBall.total_runs} Extras - {cBall.extra_runs}"
+    logging.debug(ball_string + bye_string + legbye_string + wicket_string)
 
-updateDeliveries(7949)
+    balls[len(balls)-1] = list(balls[len(balls)-1][:19])
+    balls[len(balls)-1].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamOvers])
+
+    return balls
+
+# To view ball by ball data, set level = logging.DEBUG
+logging.basicConfig(level=logging.WARNING, filename='app2.log',format=f'%(levelname)s %(message)s')
+
+data = list()
+cols = ['ball_id','match_id','inning','over','ball','batsman','non_striker','bowler','wide_runs','bye_runs','legbye_runs','noball_runs','penalty_runs','batsman_runs','extra_runs','total_runs','player_dismissed','dismissal_kind','fielder', 'striker_runs','striker_balls','non_striker_runs','non_striker_balls','team_overs']
+# running in steps just so that my laptop survives this operation :)
+for step in range(7):
+    balls = updateDeliveries(step*100 +1, (step+1)*100)
+    if balls:
+        data.extend(balls)
+        logging.debug(f'Taking a 5 second break, going for {step+2}th range,completed range from {step*100 +1} to {(step+1)*100}')
+        print(f'Taking a 5 second break, going for {step+2}th range,completed range from {step*100 +1} to {(step+1)*100}')
+        # One error at last step value as only 636 matches
+        time.sleep(5)
+    else: 
+        logging.error('Error in data generation. Final array not compiled properly')
+
+balls = updateDeliveries(7894, 11415)
+if balls:
+    data.extend(balls)
+    print(f'Data generation complete. Proceeding to create csv file ')
+    # One error at last step value as only 636 matches
+    time.sleep(2)
+else:
+    logging.error('Error in data generation. Final array not compiled properly')
+
+df = pd.DataFrame(data, columns=cols, index= False)
+df.to_csv('formatted-deliveries.csv')
+
