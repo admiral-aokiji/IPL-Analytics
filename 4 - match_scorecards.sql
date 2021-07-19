@@ -1,31 +1,6 @@
 drop table if exists match_batsman_scorecards;
 drop table if exists match_over_scorecards;
 
-CREATE TABLE IF NOT EXISTS match_batsman_scorecards (
-  batsman_inning_id INT NOT NULL AUTO_INCREMENT,
-  match_id INT NOT NULL,
-  inning SMALLINT NOT NULL,
-  batsman VARCHAR(45) NOT NULL,
-  position SMALLINT NULL,
-  runs SMALLINT UNSIGNED default 0,
-  balls SMALLINT UNSIGNED default 0,
-  dismissal_type VARCHAR(45) NULL,
-  bowler VARCHAR(45) NULL,
-  fielder VARCHAR(45) NULL,
-  runs_on_board SMALLINT UNSIGNED default 0,
-  overs_on_arrival DECIMAL(3,1) default 0,
-  overs_on_dismissal DECIMAL(3,1) default 0,
-  end_partner_runs SMALLINT default 0,
-  end_partner_balls SMALLINT default 0,
-  dot_balls SMALLINT default 0,
-  singles SMALLINT default 0,
-  doubles SMALLINT default 0,
-  triples SMALLINT default 0,
-  fours SMALLINT default 0,
-  sixes SMALLINT default 0,
-  PRIMARY KEY (batsman_inning_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
 CREATE TABLE IF NOT EXISTS match_over_scorecards (
   over_id int NOT NULL AUTO_INCREMENT,
   match_id int NOT NULL,
@@ -71,7 +46,6 @@ select w.match_id, w.inning, w.bowler, w.overs, r.runs, w.wickets,r.extras, d.do
     
 END$$
 DELIMITER ;
-DROP PROCEDURE getOverStats;
 
 -- observe the execution times for each case
 call getOverStats(1,100);
@@ -91,3 +65,32 @@ select match_id, inning, bowler,(sum(dot_balls)+ sum(fours) + sum(sixes)+sum(sin
 
 -- :) DINDA ACADEMY (take average of how many boundaries these bowlers concede in a match vs the best bowlers)
 select match_id, inning, bowler, count(overs), sum(runs), sum(wickets), sum(dot_balls),sum(fours) + sum(sixes) as boundaries from match_over_scorecards group by match_id, inning, bowler having sum(runs) >= 50; 
+
+##########################################################################################################
+
+CREATE TABLE IF NOT EXISTS match_batsman_scorecards (
+  batsman_inning_id INT NOT NULL AUTO_INCREMENT,
+  match_id INT NOT NULL,
+  inning SMALLINT NOT NULL,
+  batsman VARCHAR(45) NOT NULL,
+  position SMALLINT NULL,
+  runs SMALLINT UNSIGNED default 0,
+  balls SMALLINT UNSIGNED default 0,
+  dismissal_type VARCHAR(45) NULL,
+  bowler VARCHAR(45) NULL,
+  fielder VARCHAR(45) NULL,
+  runs_on_board SMALLINT UNSIGNED default 0,
+  overs_on_arrival DECIMAL(3,1) default 0,
+  overs_on_dismissal DECIMAL(3,1) default 0,
+  end_partner_runs SMALLINT default 0,
+  end_partner_balls SMALLINT default 0,
+  dot_balls SMALLINT default 0,
+  singles SMALLINT default 0,
+  doubles SMALLINT default 0,
+  triples SMALLINT default 0,
+  fours SMALLINT default 0,
+  sixes SMALLINT default 0,
+  PRIMARY KEY (batsman_inning_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+

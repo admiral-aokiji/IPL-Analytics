@@ -31,39 +31,51 @@ select batsman_runs, extra_runs, count(*) from deliveries where player_dismissed
 
 -- select * from deliveries where dismissal_kind in ('caught', 'run out') and fielder is null;
 
+-- 104 cases of innings starting from wide/no-ball. if any instances of wrong formatting by python script, then this result will not match
+-- select * from deliveries where striker_runs = 0 and striker_balls = 0 and non_striker_balls = 0 and non_striker_runs = 0 and team_overs = 0;
+
 start transaction;
 rollback;
 commit;
 
 
--- concat(max(`over`),'.',(count(ball_id)%6)) dismissal_ball
--- grabbing overall inning stats
-create TEMPORARY table inning_stats
-select match_id, inning, batsman,min(ball_id) position, sum(batsman_runs) runs, count(case when wide_runs = 0 and noball_runs = 0 then 1 else null end) balls from deliveries2  group by inning, batsman;
+-- ROW_NUMBER() OVER (PARTITION BY match_id, inning ORDER BY min(team_overs) ) position -- here min(team_overs) needs to be replaced by first ball on pitch
 
--- grabbing dismissal ball stats
-create TEMPORARY table wickets
-select ball_id, match_id, inning, batsman,`over`,ball, non_striker, dismissal_kind, bowler, fielder, player_dismissed from deliveries2 where player_dismissed is not null;
+-- sum of all singles, doubles ... sixes wont give balls as legbyes, byes will also be added for that 
 
--- non-striker stats
-create TEMPORARY table non_striker
-select match_id, inning, batsman, sum(batsman_runs) runs, count(case when wide_runs = 0 and noball_runs = 0 then 1 else null end) balls from deliveries2 group by match_id, inning, batsman;
-
-
-
-create TABLE deliveries2
-select * from deliveries where match_id between 7948 and 7956;
-drop table deliveries2;
-select * from deliveries2; 
+-- drop table inning_stats;
+select * from inning_stats;
+select * from dismissal_stats;
 
 
 
 
 
 
+-- DROP PROCEDURE if exists getBatsmanStats;
+-- DELIMITER $$
+-- CREATE PROCEDURE getOverStats (IN  startOver decimal(3,1), IN  endOver decimal(3,1))
+-- BEGIN 
+-- 	drop table if exists non_strike_min;
+-- 	drop table if exists inning_stats;
+-- 	drop table if exists dismissal_stats;
+    
+    -- create TEMPORARY table inning_stats 
+	select d.match_id, d.inning, d.batsman, sum(batsman_runs) runs, count(case when wide_runs = 0 and noball_runs = 0 then 1 else null end) balls, count(case when total_runs = 0 then 1 else null end) dots, count(case when batsman_runs = 1 then 1 else null end) singles,count(case when batsman_runs = 2 then 1 else null end) doubles, count(case when batsman_runs = 3 then 1 else null end) triples, count(case when batsman_runs = 4 then 1 else null end) fours, count(case when batsman_runs = 6 then 1 else null end) sixes, min(d.team_overs) teamOversArrival from deliveries as d group by match_id,inning, batsman;
+    
+    create TEMPORARY table non_strike_min
+    select match_id, inning, non_striker ,min(team_overs) from deliveries GROUP BY match_id, inning, non_striker;
+    
+    -- create TEMPORARY table dismissal_stats
+	select match_id, inning, batsman, dismissal_kind, bowler, fielder, player_dismissed, striker_runs, striker_balls, non_striker_runs, non_striker_balls, team_overs from deliveries where player_dismissed is not null;
+    
+    -- batsman that got out without ever facing a ball/ the innings ended
+    SELECT * from inning_stats i right join non_strike_min n on n.match_id = i.match_id and n.inning = i.inning and n.non_striker = i.batsman where i.batsman is null order by balls;
+    -- batsman that got out without the strike getting rotated (duck in the same over)
+    SELECT * from inning_stats i left join non_strike_min n on n.match_id = i.match_id and n.inning = i.inning and n.non_striker = i.batsman where n.non_striker is null order by balls;  
+
+-- END$$
+-- DELIMITER ;
 
 
-
-
-
-
+-- DROP PROCEDURE getBatsmanStats;
