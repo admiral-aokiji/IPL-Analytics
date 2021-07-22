@@ -161,7 +161,7 @@ def updateDeliveries(startID, endID):
             logging.debug(ball_string + bye_string + legbye_string + wicket_string)
         
         balls[i] = list(balls[i][:19])
-        balls[i].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamOvers])
+        balls[i].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamRuns,teamWickets,teamOvers])
 
     last_ball = Ball(balls[len(balls)-1])
     # swap batsmen according to matching names
@@ -183,7 +183,7 @@ def updateDeliveries(startID, endID):
     logging.debug(ball_string + bye_string + legbye_string + wicket_string)
 
     balls[len(balls)-1] = list(balls[len(balls)-1][:19])
-    balls[len(balls)-1].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamOvers])
+    balls[len(balls)-1].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamRuns,teamWickets,teamOvers])
 
     return balls
 
@@ -191,7 +191,7 @@ def updateDeliveries(startID, endID):
 logging.basicConfig(level=logging.WARNING, filename='app2.log',format=f'%(levelname)s %(message)s')
 
 data = list()
-cols = ['ball_id','match_id','inning','over','ball','batsman','non_striker','bowler','wide_runs','bye_runs','legbye_runs','noball_runs','penalty_runs','batsman_runs','extra_runs','total_runs','player_dismissed','dismissal_kind','fielder', 'striker_runs','striker_balls','non_striker_runs','non_striker_balls','team_overs']
+cols = ['ball_id','match_id','inning','over','ball','batsman','non_striker','bowler','wide_runs','bye_runs','legbye_runs','noball_runs','penalty_runs','batsman_runs','extra_runs','total_runs','player_dismissed','dismissal_kind','fielder', 'striker_runs','striker_balls','non_striker_runs','non_striker_balls', 'team_runs','team_wickets','team_overs']
 # running in steps just so that my laptop survives this operation :)
 for step in range(7):
     balls = updateDeliveries(step*100 +1, (step+1)*100)
@@ -213,6 +213,6 @@ if balls:
 else:
     logging.error('Error in data generation. Final array not compiled properly')
 
-df = pd.DataFrame(data, columns=cols, index= False)
-df.to_csv('formatted-deliveries.csv')
+df = pd.DataFrame(data, columns=cols)
+df.to_csv('formatted-deliveries.csv', index= False)
 

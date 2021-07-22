@@ -1,25 +1,25 @@
-use ipl_matches;
+use ipl;
 drop table if exists matches;
 drop table if exists teams;
 drop table if exists venues;
 
-CREATE TABLE if not exists `matches` (
-  `match_id` int unsigned NOT NULL ,
-  `season` MEDIUMINT NOT NULL,
-  `city` varchar(30) DEFAULT NULL,
+CREATE TABLE if not exists matches (
+  match_id int unsigned NOT NULL ,
+  season MEDIUMINT NOT NULL,
+  city varchar(30) DEFAULT NULL,
   `date` text NOT NULL,
-  `batting_team1` varchar(30) NOT NULL,
-  `batting_team2` varchar(30) NOT NULL,
-  `toss_winner` varchar(30) DEFAULT 'NR',
-  `toss_decision` varchar(30) DEFAULT 'NR',
-  `result_type` varchar(10) DEFAULT 'no result',
-  `dl_applied` SMALLINT DEFAULT 0,
-  `winner` varchar(30) DEFAULT 'NR',
-  `win_by_runs` SMALLINT DEFAULT 0,
-  `win_by_wickets` SMALLINT DEFAULT 0,
-  `player_of_match` varchar(30) DEFAULT 'NR',
-  `venue` varchar(60) NOT NULL,
-  PRIMARY KEY (`match_id`)
+  batting_team1 varchar(30) NOT NULL,
+  batting_team2 varchar(30) NOT NULL,
+  toss_winner varchar(30) DEFAULT 'NR',
+  toss_decision varchar(30) DEFAULT 'NR',
+  result_type varchar(10) DEFAULT 'no result',
+  dl_applied SMALLINT DEFAULT 0,
+  winner varchar(30) DEFAULT 'NR',
+  win_by_runs SMALLINT DEFAULT 0,
+  win_by_wickets SMALLINT DEFAULT 0,
+  player_of_match varchar(30) DEFAULT 'NR',
+  venue varchar(60) NOT NULL,
+  PRIMARY KEY (match_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 load data local infile 'D:/work/pythonPractice/big projects/IPL Analytics/work/matches.csv' -- add your own path here
@@ -57,12 +57,12 @@ update matches set toss_winner = 'Rising Pune Supergiants' where toss_winner = '
 update matches set date = str_to_date(date, '%d/%m/%Y') where season in (2018,2019);
 alter table matches modify column date DATE;
 
-CREATE TABLE if not exists `venues` (
-  `venue_id` int unsigned NOT NULL AUTO_INCREMENT,
-  `stadium` varchar(100) DEFAULT NULL,
-  `city` varchar(45) DEFAULT NULL,
-  `nation` varchar(45) DEFAULT 'India',
-  PRIMARY KEY (`venue_id`)
+CREATE TABLE if not exists venues (
+  venue_id int unsigned NOT NULL AUTO_INCREMENT,
+  stadium varchar(100) DEFAULT NULL,
+  city varchar(45) DEFAULT NULL,
+  nation varchar(45) DEFAULT 'India',
+  PRIMARY KEY (venue_id)
 ) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 insert into venues (city, stadium)
 select distinct city, venue from matches;
@@ -78,10 +78,10 @@ alter table matches drop column dl_applied, drop column city, drop COLUMN venue,
 update matches set winner = 'NR' where winner = '';
 update matches set player_of_match = 'NR' where player_of_match = '';
 
-CREATE TABLE IF NOT EXISTS `teams` (
+CREATE TABLE IF NOT EXISTS teams (
   team_id SMALLINT unsigned NOT NULL AUTO_INCREMENT,
-  `team_name` varchar(45) DEFAULT NULL,
-  `status` tinyint DEFAULT '1',
+  team_name varchar(45) DEFAULT NULL,
+  status tinyint DEFAULT '1',
   parent_team_id int DEFAULT NULL,
   team_short_name varchar(5) DEFAULT NULL,
   home_stadium1 smallint DEFAULT NULL,

@@ -1,29 +1,29 @@
 drop table if exists deliveries;
 
-CREATE TABLE if not exists `deliveries` (
-  `ball_id` int unsigned NOT NULL AUTO_INCREMENT,
-  `match_id` int unsigned NOT NULL,
-  `inning` int DEFAULT NULL,
-  `batting_team` varchar(30) NOT NULL,
-  `bowling_team` varchar(30) NOT NULL,
+CREATE TABLE if not exists deliveries (
+  ball_id int unsigned NOT NULL AUTO_INCREMENT,
+  match_id int unsigned NOT NULL,
+  inning int DEFAULT NULL,
+  batting_team varchar(30) NOT NULL,
+  bowling_team varchar(30) NOT NULL,
   `over` smallint NOT NULL,
-  `ball` smallint NOT NULL,
-  `batsman` varchar(30) NOT NULL,
-  `non_striker` varchar(30) NOT NULL,
-  `bowler` varchar(30) NOT NULL,
-  `is_super_over` smallint DEFAULT 0,
-  `wide_runs` int DEFAULT NULL,
-  `bye_runs` int DEFAULT NULL,
-  `legbye_runs` int DEFAULT 0,
-  `noball_runs` int DEFAULT 0,
-  `penalty_runs` int DEFAULT 0,
-  `batsman_runs` int DEFAULT 0,
-  `extra_runs` int DEFAULT 0,
-  `total_runs` int DEFAULT 0,
-  `player_dismissed` varchar(30) DEFAULT NULL,
-  `dismissal_kind` varchar(30) DEFAULT NULL,
-  `fielder` varchar(30) DEFAULT NULL,
-  PRIMARY KEY (`ball_id`)
+  ball smallint NOT NULL,
+  batsman varchar(30) NOT NULL,
+  non_striker varchar(30) NOT NULL,
+  bowler varchar(30) NOT NULL,
+  is_super_over smallint DEFAULT 0,
+  wide_runs int DEFAULT NULL,
+  bye_runs int DEFAULT NULL,
+  legbye_runs int DEFAULT 0,
+  noball_runs int DEFAULT 0,
+  penalty_runs int DEFAULT 0,
+  batsman_runs int DEFAULT 0,
+  extra_runs int DEFAULT 0,
+  total_runs int DEFAULT 0,
+  player_dismissed varchar(30) DEFAULT NULL,
+  dismissal_kind varchar(30) DEFAULT NULL,
+  fielder varchar(30) DEFAULT NULL,
+  PRIMARY KEY (ball_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 load data local infile 'D:/work/pythonPractice/big projects/IPL Analytics/work/deliveries.csv'  -- add your own path here
@@ -95,37 +95,15 @@ update deliveries set fielder = 'JP Duminy (sub)' where ball_id = 153677; -- 790
 
 alter TABLE super_over_balls drop COLUMN `over`, drop COLUMN is_super_over; 
 alter TABLE deliveries drop COLUMN batting_team, drop COLUMN bowling_team; 
-alter table deliveries2 add COLUMN striker_runs SMALLINT unsigned default 0, add COLUMN striker_balls SMALLINT default 0, add COLUMN non_striker_runs SMALLINT unsigned default 0, add COLUMN non_striker_balls SMALLINT unsigned default 0, add COLUMN team_runs SMALLINT unsigned default 0,add COLUMN team_overs decimal(3,1) default 0.0;
+alter table deliveries add COLUMN striker_runs SMALLINT unsigned default 0, add COLUMN striker_balls SMALLINT default 0, add COLUMN non_striker_runs SMALLINT unsigned default 0, add COLUMN non_striker_balls SMALLINT unsigned default 0, add COLUMN team_runs SMALLINT unsigned default 0,add COLUMN team_overs decimal(3,1) default 0.0;
 
--- Instead of manually updating each row with the new values for striker_runs, striker_balls, non_striker_runs, non_striker_balls and team_overs, reformatting the deliveries table in python and then reimporting the formatted deliveries.csv was found to be much faster (from ~10 hours to ~10 seconds).
-
-drop table if EXISTS deliveries;
-CREATE TABLE if not exists `deliveries` (
-  `ball_id` int unsigned NOT NULL AUTO_INCREMENT,
-  `match_id` int unsigned NOT NULL,
-  `inning` int DEFAULT NULL,
-  `over` smallint NOT NULL,
-  `ball` smallint NOT NULL,
-  `batsman` varchar(30) NOT NULL,
-  `non_striker` varchar(30) NOT NULL,
-  `bowler` varchar(30) NOT NULL,
-  `wide_runs` int DEFAULT NULL,
-  `bye_runs` int DEFAULT NULL,
-  `legbye_runs` int DEFAULT 0,
-  `noball_runs` int DEFAULT 0,
-  `penalty_runs` int DEFAULT 0,
-  `batsman_runs` int DEFAULT 0,
-  `extra_runs` int DEFAULT 0,
-  `total_runs` int DEFAULT 0,
-  `player_dismissed` varchar(30) DEFAULT NULL,
-  `dismissal_kind` varchar(30) DEFAULT NULL,
-  `fielder` varchar(30) DEFAULT NULL,
-  `striker_runs` SMALLINT unsigned default 0,
-  `striker_balls` SMALLINT default 0,
-  `non_striker_runs` SMALLINT unsigned default 0,
-  `non_striker_balls` SMALLINT unsigned default 0,
-  `team_overs` decimal(3, 1) default 0.0,
-  PRIMARY KEY (`ball_id`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
-load data local infile 'D:/work/pythonPractice/big projects/IPL Analytics/work/formatted-deliveries.csv' -- add your own path here
-into table deliveries fields terminated by ',' enclosed by '"' lines terminated by '\n' ignore 1 lines;
+-- Cases of retired hurts not mentioned in the DB that would wreak havoc in the updated deliveries.csv created using python
+update deliveries set player_dismissed = 'KC Sangakkara',dismissal_kind = 'retired hurt' where ball_id = 18894;
+update deliveries set player_dismissed = 'SR Tendulkar',dismissal_kind = 'retired hurt' where ball_id = 49901;
+update deliveries set player_dismissed = 'AC Gilchrist',dismissal_kind = 'retired hurt' where ball_id = 77689;
+update deliveries set player_dismissed = 'SS Tiwary',dismissal_kind = 'retired hurt' where ball_id = 88924;
+update deliveries set player_dismissed = 'S Dhawan', dismissal_kind = 'retired hurt' where ball_id = 98044;
+update deliveries set player_dismissed = 'KM Jadhav', dismissal_kind = 'retired hurt' where ball_id = 150661;
+update deliveries set player_dismissed = 'CH Gayle', dismissal_kind = 'retired hurt' where ball_id = 159861;
+update deliveries set player_dismissed = 'R Salam', dismissal_kind = 'retired hurt' where ball_id = 165453;
+update deliveries set player_dismissed = 'CA Lynn', dismissal_kind = 'retired hurt' where ball_id = 171642;
