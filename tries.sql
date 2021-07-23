@@ -5,7 +5,8 @@ select * from venues;
 select * from match_over_scorecards; 
 select * from match_bowler_scorecards; 
 select * from match_batsman_scorecards; 
-select * from points_table;
+select * from points_table order by season, points desc;
+select * from team_season_matches;
 
 -- ball possible outcomes grouping (improve and consider all cases)
 -- legal balls + no wickets
@@ -56,8 +57,3 @@ select noball_runs, batsman_runs, count(*) from deliveries where player_dismisse
 start transaction;
 rollback;
 commit;
-
-
-
-
- 

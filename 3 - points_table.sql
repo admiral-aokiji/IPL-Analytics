@@ -1,22 +1,22 @@
--- for seasons where no of teams<10 and != 2009,2014
 drop table if exists points_table;
+drop table if exists team_season_matches;
+
 CREATE TABLE IF NOT EXISTS points_table (
   entry_id int unsigned NOT NULL AUTO_INCREMENT,
   season mediumint NOT NULL,
   team varchar(45) NOT NULL,
-  home_wins smallint DEFAULT 0,
-  home_losses smallint DEFAULT 0,
-  home_nr smallint DEFAULT 0,
-  away_wins smallint DEFAULT 0,
-  away_losses smallint DEFAULT 0,
-  away_nr smallint DEFAULT 0,
+  matches_played smallint DEFAULT 0,
+  points smallint DEFAULT 0,
+  wins smallint DEFAULT 0,
+  losses smallint DEFAULT 0,
+  no_results smallint DEFAULT 0,
   for_runs mediumint DEFAULT 0,
   for_wickets mediumint DEFAULT 0,
   for_overs decimal(5,1) DEFAULT 0.0,
   away_runs mediumint DEFAULT 0,
   away_wickets mediumint DEFAULT 0,
   away_overs decimal(5,1) DEFAULT 0.0,
-  net_run_rate decimal(5,4) DEFAULT 0.0000,
+  net_run_rate decimal(5,4) as (for_runs/for_overs - away_runs/away_overs),
   tosses_won smallint DEFAULT 0,
   longest_win_streak smallint DEFAULT 0,
   longest_loss_streak smallint DEFAULT 0,
@@ -24,71 +24,66 @@ CREATE TABLE IF NOT EXISTS points_table (
   PRIMARY KEY (entry_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-create temporary table away_stats;
-select season, count(case when winner != 'KKR' then null else 1 end) away_wins, 
-	count(case when result_type != 'no result' then null else 1 end) away_nr, 
-    count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as away_losses, 
-    sum(case when team1_match_type = 'away' then team1_runs when team2_match_type = 'away' then team2_runs else null end) away_runs, 
-    sum(case when team1_match_type = 'away' then team1_wickets when team2_match_type = 'away' then team2_wickets else null end) away_wickets, 
-    sum(case when team1_match_type = 'away' then floor(team1_overs)*6 + (team1_overs*10)%10 when team2_match_type = 'home' then floor(team2_overs)*6 + (team2_overs*10)%10 else null end) away_overs -- correct sum of balls
-    from matches where season != 2014 and ((batting_team1 = 'KKR' and team1_match_type = 'away') or (batting_team2 = 'KKR' and team2_match_type = 'away')) group by season;
+CREATE TABLE IF NOT EXISTS team_season_matches (
+  entry_id int NOT NULL AUTO_INCREMENT,
+  team varchar(45) DEFAULT NULL,
+  match_id mediumint DEFAULT NULL,
+  season smallint DEFAULT NULL,
+  match_date date DEFAULT NULL,
+  match_time varchar(45) DEFAULT NULL,
+  match_type varchar(45) DEFAULT NULL,
+  toss_winner varchar(45) DEFAULT NULL,
+  result varchar(45) DEFAULT NULL,
+  winner smallint DEFAULT NULL,
+  runs_scored smallint unsigned DEFAULT NULL,
+  wickets_fallen smallint DEFAULT NULL,
+  overs_played decimal(3,1) DEFAULT NULL,
+  opp_runs smallint unsigned DEFAULT NULL,
+  opp_wickets smallint DEFAULT NULL,
+  opp_overs decimal(3,1) DEFAULT NULL,
+  PRIMARY KEY (entry_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-create temporary table home_stats;    
-select season, count(case when winner != 'KKR' then null else 1 end) home_wins, 
-	count(case when result_type != 'no result' then null else 1 end) home_nr, 
-    count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as home_losses, 
-    sum(case when team1_match_type = 'home' then team1_runs when team2_match_type = 'home' then team2_runs else null end) home_runs, 
-    sum(case when team1_match_type = 'home' then team1_wickets when team2_match_type = 'home' then team2_wickets else null end) home_wickets, 
-    sum(case when team1_match_type = 'home' then floor(team1_overs)*6 + (team1_overs*10)%10 when team2_match_type = 'home' then floor(team2_overs)*6 + (team2_overs*10)%10 else null end) home_overs -- correct sum of balls
-    from matches where season != 2014 and ((batting_team1 = 'KKR' and team1_match_type = 'home') or (batting_team2 = 'KKR' and team2_match_type = 'home')) group by season;
+###########################################################################################
 
--- 2009 and 2014 (doubtful)
-select season, count(case when winner != 'KKR' then null else 1 end) wins, 
-	count(case when result_type != 'no result' then null else 1 end) no_results, 
-    count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses,
-    sum(case when batting_team1 = 'KKR' then team1_runs when batting_team2 = 'KKR' then team2_runs else null end) runs, 
-    sum(case when batting_team1 = 'KKR' then team1_wickets when batting_team2 = 'KKR' then team2_wickets else null end) wickets, 
-    sum(case when batting_team1 = 'KKR' then floor(team1_overs) when batting_team2 = 'KKR' then team2_overs else null end) overs, -- correct sum of balls
-    sum(case when batting_team1 != 'KKR' then team1_runs when batting_team2 != 'KKR' then team2_runs else null end) away_runs, 
-    sum(case when batting_team1 != 'KKR' then team1_wickets when batting_team2 != 'KKR' then team2_wickets else null end) away_wickets, 
-    sum(case when batting_team1 != 'KKR' then team1_oversh when batting_team2 != 'KKR' then team2_overs else null end) away_overs, -- correct sum of balls
-    count(case when toss_winner = 'KKR' then 1 else null end) tosses_won
-    from matches where (batting_team1 = 'KKR' or batting_team2 = 'KKR') and season = 2009 group by season;
+DROP PROCEDURE if exists getSeasonStats;
+DELIMITER $$
+CREATE PROCEDURE getSeasonStats (IN  team varchar(10))
+BEGIN 
+drop table if exists team_stats;
+create temporary table team_stats
+select batting_team1, match_id, season, `date`,`time`, team1_match_type,toss_winner, result_type, (case when winner = team then 2 when winner ='NR' then 1 else 0 end) points, team1_runs, team1_wickets, team1_overs, team2_runs, team2_wickets, team2_overs from matches WHERE batting_team1 = team and team1_match_type not in ('final','3rd place','semifinals','eliminator') union 
+select batting_team2, match_id, season, `date`,`time`, team2_match_type,toss_winner, result_type, (case when winner = team then 2 when winner ='NR' then 1 else 0 end) points, team2_runs, team2_wickets, team2_overs, team1_runs, team1_wickets, team1_overs from matches WHERE batting_team2 = team and team2_match_type not in ('final','3rd place','semifinals','eliminator');
+
+insert into team_season_matches (`team`,`match_id`,`season`,`match_date`,`match_time`,`match_type`,toss_winner,`result`,`winner`,`runs_scored`,`wickets_fallen`,`overs_played`,`opp_runs`,`opp_wickets`,`opp_overs`)
+select * from team_stats;
+
+insert into points_table (`season`,`team`,`matches_played`,`points` ,`wins`,`losses`,`no_results`,`for_runs`,`for_wickets`,`for_overs`,`away_runs`,`away_wickets`,`away_overs`,`tosses_won`)
+select season, batting_team1, count(match_id) played, sum(points) total_points, 
+	count(case when points = 2 then 1 else null end) wins,
+	count(case when points = 0 then 1 else null end) losses,
+	count(case when points = 1 then 1 else null end) no_results,
+    sum(team1_runs) runs_for, sum(team1_wickets) wickets_for, round(floor(sum(floor(team1_overs)*6 + (team1_overs*10)%10)/6) + (sum(floor(team1_overs)*6 + (team1_overs*10)%10)%6)/10,1) as overs_for,
+    sum(team2_runs) runs_against, sum(team2_wickets) wickets_against, round(floor(sum(floor(team2_overs)*6 + (team2_overs*10)%10)/6) + (sum(floor(team2_overs)*6 + (team2_overs*10)%10)%6)/10,1) overs_against,count(case when toss_winner = 'KKR' then 1 else null end) tosses_won from team_stats group by season;
+
+-- insert into detailed_team_stats
+-- select season, team1_match_type, sum(points), sum(team1_runs), sum(team1_wickets), floor(sum(floor(team1_overs)*6 + (team1_overs*10)%10)/6) + (sum(floor(team1_overs)*6 + (team1_overs*10)%10)%6), sum(team2_runs), sum(team2_wickets), sum(floor(team1_overs)*6 + (team1_overs*10)%10) from team_stats group by season, team1_match_type;
+
+drop table team_stats;
+END $$
+Delimiter ;
+
+-- Loop team_short_name for each parent_id = team_id
+call getSeasonStats('KKR');
+call getSeasonStats('CSK');
+call getSeasonStats('DC');
+call getSeasonStats('MI');
+call getSeasonStats('SRH');
+call getSeasonStats('RPS');
+call getSeasonStats('KTK');
+call getSeasonStats('GC');
+call getSeasonStats('RCB');
+call getSeasonStats('KXIP');
+call getSeasonStats('RR');
 
 
-
-
-
--- create temporary table away_stats;
--- select season, count(case when winner != 'KKR' then null else 1 end) wins, 
--- 	count(case when result_type != 'no result' then null else 1 end) no_results, 
---     count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses, 
---     sum(case when team1_match_type = 'away' then team1_runs when team2_match_type = 'away' then team2_runs else null end) away_runs, 
---     sum(case when team1_match_type = 'away' then team1_wickets when team2_match_type = 'away' then team2_wickets else null end) away_wickets, 
---     sum(case when team1_match_type = 'away' then floor(team1_overs) when team2_match_type = 'away' then team2_overs else null end) away_overs -- correct sum of balls
---     from matches where (batting_team1 = 'KKR' and team1_match_type = 'away') or (batting_team2 = 'KKR' and team2_match_type = 'away') and season != 2014 group by season;
-
--- create temporary table home_stats;    
--- select season, count(case when winner != 'KKR' then null else 1 end) wins, 
--- 	count(case when result_type != 'no result' then null else 1 end) no_results, 
---     count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses, 
---     sum(case when team1_match_type = 'home' then team1_runs when team2_match_type = 'home' then team2_runs else null end) away_runs, 
---     sum(case when team1_match_type = 'home' then team1_wickets when team2_match_type = 'home' then team2_wickets else null end) away_wickets, 
---     sum(case when team1_match_type = 'home' then floor(team1_overs) when team2_match_type = 'home' then team2_overs else null end) away_overs -- correct sum of balls
---     from matches where (batting_team1 = 'KKR' and team1_match_type = 'home') or (batting_team2 = 'KKR' and team2_match_type = 'home') and season != 2014 group by season;
-
--- 2009 and 2014 (doubtful)
--- select season, count(case when winner != 'KKR' then null else 1 end) wins, 
--- 	count(case when result_type != 'no result' then null else 1 end) no_results, 
---     count(*) - count(case when winner != 'KKR' then null else 1 end) - count(case when result_type != 'no result' then null else 1 end) as losses,
---     sum(case when batting_team1 = 'KKR' then team1_runs when batting_team2 = 'KKR' then team2_runs else null end) runs, 
---     sum(case when batting_team1 = 'KKR' then team1_wickets when batting_team2 = 'KKR' then team2_wickets else null end) wickets, 
---     sum(case when batting_team1 = 'KKR' then floor(team1_overs) when batting_team2 = 'KKR' then team2_overs else null end) overs, -- correct sum of balls
---     sum(case when batting_team1 != 'KKR' then team1_runs when batting_team2 != 'KKR' then team2_runs else null end) away_runs, 
---     sum(case when batting_team1 != 'KKR' then team1_wickets when batting_team2 != 'KKR' then team2_wickets else null end) away_wickets, 
---     sum(case when batting_team1 != 'KKR' then team1_oversh when batting_team2 != 'KKR' then team2_overs else null end) away_overs, -- correct sum of balls
---     count(case when toss_winner = 'KKR' then 1 else null end) tosses_won
---     from matches where (batting_team1 = 'KKR' or batting_team2 = 'KKR') and season = 2009 group by season;
-
--- select season, batting_team1, sum(team1_runs), sum(team1_overs), count(*) from matches where team1_match_type not in ('final','semifinals', 'eliminator','3rd place') group by season, batting_team1;    
-    
