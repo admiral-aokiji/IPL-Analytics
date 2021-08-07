@@ -1,4 +1,6 @@
-deliveries.csv
-matches.csv
+datasets/ipl_json/2021
+datasets/generated
 .env
 app2.log
+app.log
+tempShit
