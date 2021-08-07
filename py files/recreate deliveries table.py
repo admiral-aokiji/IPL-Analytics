@@ -77,7 +77,6 @@ def updateDeliveries(startID, endID):
             batsman['runs'] = 0
             batsman['balls'] = 0
         
-
     for i in range(len(balls)-1):
         
         wicket_string, bye_string, legbye_string = '', '', ''
@@ -146,7 +145,7 @@ def updateDeliveries(startID, endID):
                 bye_string = ' Byes ' + str(cBall.extra_runs)
             logging.debug(ball_string + bye_string + legbye_string + wicket_string)
         
-        balls[i] = list(balls[i][:16])
+        balls[i] = list(vars(cBall).values())[:16]
         balls[i].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamRuns,teamOvers])
 
     last_ball = Ball(balls[len(balls)-1])
@@ -168,7 +167,7 @@ def updateDeliveries(startID, endID):
     ball_string = f"{last_ball.match_id}|{last_ball.inning} - {last_ball.ball_id} :- {teamRuns}/{teamWickets}  {teamOvers} ||{batsmen[0]['name']} ({batsmen[0]['runs']},{batsmen[0]['balls']}) | {batsmen[1]['name']} ({batsmen[1]['runs']},{batsmen[1]['balls']})  || {cBall.total_runs} Extras - {cBall.extra_runs}"
     logging.debug(ball_string + bye_string + legbye_string + wicket_string)
 
-    balls[len(balls)-1] = list(balls[len(balls)-1][:16])
+    balls[len(balls)-1] = list(vars(last_ball).values())[:16]
     balls[len(balls)-1].extend([batsmen[0]['runs'], batsmen[0]['balls'],batsmen[1]['runs'],batsmen[1]['balls'],teamRuns,teamOvers])
 
     return balls
@@ -192,11 +191,18 @@ replace_names = {
     'S Mavi': 'Shivam Mavi',
     'L Ferguson':'LH Ferguson',
     'M Ali':'MM Ali',
-    'S Hitmayer':'SO Hitmayer',
+    'S Hetmyer':'SO Hetmyer',
     'N Saini': 'NA Saini',
     'J Archer': 'JC Archer',
     'J Bairstow': 'JM Bairstow',
     'N Naik': 'NS Naik',
+    'S Sharma': 'Sandeep Sharma',
+    'S Singh': 'P Simran Singh',
+    'P Krishna': 'M Prasidh Krishna',
+    'CV Varun': 'V Chakravarthy',
+    'R Singh': 'RK Singh',
+    'H Vihari': 'GH Vihari',
+    'Harmeet Singh (2)': 'H S Baddhan',
 }
 
 load_dotenv()
@@ -249,7 +255,7 @@ for i,ball in enumerate(data):
     if ball[15] in list(replace_names.keys()):
         logging.warning(f'{data[i][15]} values changed for fielder column')
         data[i][15] = replace_names[ball[15]]
-
+  
 print('Changed names')
 time.sleep(2)
 df = pd.DataFrame(data, columns=cols)

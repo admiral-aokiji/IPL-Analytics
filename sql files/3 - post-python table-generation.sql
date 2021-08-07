@@ -40,7 +40,8 @@ update deliveries2 set player_dismissed = null where player_dismissed = '';
 update deliveries2 set dismissal_kind= null where dismissal_kind = '';
 update deliveries2 set fielder = null where fielder = '';
 update deliveries2 set extras_type = null where extras_type = '';
-update deliveries2 set team_overs = replace(trim(trailing '\r' from team_overs),trim(trailing '\n' from team_overs),trim(trailing ' ' from team_overs));
+-- update deliveries2 set team_overs = replace(trim(trailing '\r' from team_overs),trim(trailing '\n' from team_overs),trim(trailing ' ' from team_overs));
+-- update deliveries2 set fielder = replace(trim(trailing '\r' from fielder),trim(trailing '\n' from fielder),trim(trailing ' ' from fielder));
 
 #################### OVER AND BOWLER SCORECARDS ####################
 drop table if exists match_over_scorecards;
@@ -161,7 +162,7 @@ BEGIN
 select match_id, inning, non_striker, dismissal_kind, bowler, fielder, player_dismissed, striker_runs as end_partner_runs, non_striker_balls as end_partner_balls, team_runs,team_overs from deliveries2 where player_dismissed is not null and player_dismissed != batsman and (match_id between startMatch and endMatch);
     
     insert into match_batsman_scorecards2 (match_id, inning, batsman, position, runs, balls, dismissal_type, bowler, fielder, runs_on_arrival, overs_on_arrival,runs_on_dismissal, overs_on_dismissal, end_partner_runs, end_partner_balls, dot_balls, singles, doubles, triples, fours,fives, sixes)
-    select i.match_id, i.inning, i.batsman,p.str_order, i.runs, i.balls, d.dismissal_kind, d.bowler, d.fielder, p.runs_on_arrival, p.overs_on_arrival, d.team_runs as runs_on_dismissal, d.team_overs as overs_on_dismissal, d.end_partner_runs, d.end_partner_balls, i.dots, i.singles, i.doubles, i.triples, i.fours, i.fives, i.sixes from inning_stats i join position_sort p on i.match_id = p.match_id and i.inning = p.inning and i.batsman = p.batsman left join dismissal_stats d on d.match_id = p.match_id and d.inning = p.inning and d.batsman = p.batsman;
+    select p.match_id, p.inning, p.batsman,p.str_order, coalesce(i.runs,0), coalesce(i.balls,0), d.dismissal_kind, d.bowler, d.fielder, p.runs_on_arrival, p.overs_on_arrival, d.team_runs as runs_on_dismissal, d.team_overs as overs_on_dismissal, d.end_partner_runs, d.end_partner_balls, coalesce(i.dots,0), coalesce(i.singles,0), coalesce(i.doubles,0), coalesce(i.triples,0), coalesce(i.fours,0), coalesce(i.fives,0), coalesce(i.sixes,0) from position_sort p left join inning_stats i on i.match_id = p.match_id and i.inning = p.inning and i.batsman = p.batsman left join dismissal_stats d on d.match_id = p.match_id and d.inning = p.inning and d.batsman = p.batsman;
     
     drop table strike_min, non_strike_min, position_sort, inning_stats, dismissal_stats;
 	
@@ -174,8 +175,8 @@ call getBatsmanStats(151,300);
 call getBatsmanStats(301,500);
 call getBatsmanStats(501,900);
 
-update match_batsman_scorecards2 s join matches m using (match_id) set dismissal_type = 'NO', bowler = 'NO', runs_on_dismissal = m.team1_runs, overs_on_dismissal = m.team1_overs where s.inning =1 and s.dismissal_type is null and overs_on_arrival < 20.0;
-update match_batsman_scorecards2 s join matches m using (match_id) set dismissal_type = 'NO', bowler = 'NO', runs_on_dismissal = m.team2_runs, overs_on_dismissal = m.team2_overs where s.inning =2 and s.dismissal_type is null and overs_on_arrival < 20.0;
+update match_batsman_scorecards2 s join matches m using (match_id) set dismissal_type = 'NO', bowler = 'NO', runs_on_dismissal = m.team1_runs, overs_on_dismissal = m.team1_overs where s.inning =1 and s.dismissal_type is null and overs_on_arrival <= 20.0;
+update match_batsman_scorecards2 s join matches m using (match_id) set dismissal_type = 'NO', bowler = 'NO', runs_on_dismissal = m.team2_runs, overs_on_dismissal = m.team2_overs where s.inning =2 and s.dismissal_type is null and overs_on_arrival <= 20.0;
 update match_batsman_scorecards2 set runs_on_arrival = 0, overs_on_arrival = 0.0 where position in (1,2);
 -- solve the issue where dismissal_over and arrival_over of next batsman differ
 

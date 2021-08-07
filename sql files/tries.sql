@@ -64,9 +64,4 @@ select * from deliveries2 where team_overs > 20;
 
 select * from match_bowler_scorecards order by maidens + near_maidens desc; 
 
-SELECT match_id, inning, count(batsman) from match_batsman_scorecards GROUP BY match_id, inning having count(batsman) != 11;
-with cte as 
-(SELECT match_id, batsman as player from match_batsman_scorecards where inning = 1 union
-SELECT match_id, fielder as player from match_batsman_scorecards where inning = 2 and fielder is NOT null and fielder not like '%(sub)%' group by match_id, fielder union
-SELECT match_id, bowler as player from match_batsman_scorecards where inning = 2 and bowler not in ('NO', 'DNB') group by match_id, bowler)
-select cte.match_id, m.batting_team1, count(player) as squad from cte join matches m on m.match_id = cte.match_id group by match_id having squad != 11;
+SELECT match_id, inning, count(batsman) from match_batsman_scorecards group by match_id, inning HAVING count(batsman) != 11 ;

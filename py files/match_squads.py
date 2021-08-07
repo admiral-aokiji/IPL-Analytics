@@ -44,8 +44,8 @@ team_names = {'Kolkata Knight Riders': 'KKR',
 
 def obtainMatches(date, team1, team2):
     # wont match for one case where date was changed so str_date is hardcoded 
-    if date == '2014-05-27' and 'KKR' in [team1, team2]: 
-        date = '2014-05-28'
+    if date == "'2014-05-27'" and "'KKR'" in [team1, team2]: 
+        date = "'2014-05-28'"
     match_sql = f"SELECT `match_id`, `inning`, `batsman`, `position`, `runs`, `balls`, `dismissal_type`, `bowler`, `fielder`, `runs_on_arrival`, `overs_on_arrival`, `runs_on_dismissal`, `overs_on_dismissal`, `end_partner_runs`, `end_partner_balls`, `dot_balls`, `singles`, `doubles`, `triples`, `fours`, `fives`, `sixes` from match_batsman_scorecards2 where match_id = (select match_id from matches where `date` = {date} and batting_team1 = {team1} and batting_team2 = {team2});"
     try:
         mycursor.execute(match_sql)
@@ -71,7 +71,7 @@ def updateMatchSquads(scorecard, team1, team2):
     match_id = scorecard[0][0]
     insert_success_switch = 1
     for inn in range(1,3):
-        batsmen = [list(entry) for entry in scorecard if entry[1] == inn] # existing batsmen rows in match_batsman_scorecards2 table
+        batsmen = [list(entry) for entry in scorecard if entry[1] == inn] # existing batsmen rows in match_batsman_scorecards2 table 
         bat = [entry[2] for entry in scorecard if entry[1] == inn] # extracting batsmen names from the match_batsman_scorecards2 table
         logging.debug(f'Squad list for inning {inn} - {(", ").join(bat)}')
         for j,batsman in enumerate(batsmen):
@@ -82,7 +82,8 @@ def updateMatchSquads(scorecard, team1, team2):
                     batsmen[j][k] = key
                 else:
                     batsmen[j][k] = key.strip()
-        count_batsman = len(bat) # number of batsmen who already reached the crease
+        count_batsman = max([entry[3] for entry in scorecard if entry[1] == inn]) if len(bat) else 0# number of batsmen who already reached the crease.
+        # if len(bat) used, then retired hurt cases will cause issue (That too only when they come back to bat again)
 
         for batsman in teams[inn-1]:
             if batsman not in bat and count_batsman < 11:
@@ -115,6 +116,38 @@ def checkInning1Score(team1_score,match_id):
             #! team1_score has been acquired using Target, which wont match in cases of DuckWorth Lewis system being implemented
             logging.critical(f'{match_id} inning 1 scores do not match -{t1_score[0][0]} {team1_score} {file}')
 
+
+replace_main = {
+    'AS Yadav': 'SA Yadav',
+    'R Bishnoi': 'Ravi Bishnoi',
+    'N Saini': 'NA Saini',
+    'Navdeep Saini': 'NA Saini',
+    'CV Varun': 'V Chakravarthy',
+    'AD Hales': 'A Hales',
+    'AJ Turner': 'A Turner',
+    'AS Joseph': 'A Joseph',
+    'AS Roy': 'A Roy',
+    'CJ Dala': 'J Dala',
+    'DJ Willey': 'D Willey',
+    'DJM Short': 'D Short',
+    'DR Shorey': 'DR Shorey',
+    'GC Viljoen': 'H Viljoen',
+    'HF Gurney': 'H Gurney',
+    'IS Sodhi': 'I Sodhi',
+    'JL Denly': 'J Denly',
+    'JP Behrendorff': 'J Behrendorff',
+    'JPR Scantlebury-Searles': 'J Searles',
+    'LE Plunkett': 'L Plunkett',
+    'LS Livingstone': 'L Livingstone',
+    'MA Wood': 'MA Wood',
+    'NK Patel': 'Niraj Patel',
+    'P Ray Barman': 'P R Barman',
+    'RK Bhui': 'R Bhui',
+    'Rasikh Salam':'R Salam',
+    'SC Kuggeleijn': 'S Kuggeleijn',
+    'SE Rutherford': 'S Rutherford',
+    'Y Prithvi Raj':'P Raj',
+}
 mydb, mycursor = connectSQL()
 
 dl_sql = f'select match_id from matches where result_type = "DL applied";'
@@ -136,9 +169,15 @@ for file in os.listdir(path):
     team1_squad = match['info']['players'][match['info']['teams'][0]]
     team2_squad = match['info']['players'][match['info']['teams'][1]]
 
+    for x,pl1 in enumerate(team1_squad):
+        if pl1 in replace_main.keys():
+            team1_squad[x] = replace_main[pl1]
+    for y, pl2 in enumerate(team2_squad):
+        if pl2 in replace_main.keys():
+            team2_squad[y] = replace_main[pl2]
+
     date = match['info']['dates'][0]
     teams = match['info']['teams']
-
     short_teams = list()
     for team in teams:
         try:
