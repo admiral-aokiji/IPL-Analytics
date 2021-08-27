@@ -76,6 +76,7 @@ terminated by '\n'
 ignore 1 lines;
 
 #################### MATCH ID VALUES REFORMATTED ####################
+-- No window function used as the match_ids need to be updated in both the tables
 update deliveries d join matches m on d.match_id = m.match_id set d.match_id = d.match_id + 800 where m.season = 2017;
 update matches set match_id = match_id + 800 where season = 2017 and match_id != 708;
 update deliveries d join matches m on d.match_id = m.match_id set d.match_id = d.match_id - 59 where m.season < 2017;
@@ -146,11 +147,6 @@ update venues set nation = 'UAE' WHERE city in ('Sharjah', 'Abu Dhabi', 'Dubai')
 update venues set nation = 'South Africa' WHERE city in (select DISTINCT city from matches where year(date) = 2009);
 -- get stadium stats from sportsf1.com
 
--- team1 = batting first team always. Thus, team1 column from matches.csv renamed to batting_team1. Also, if toss_winner = team1, then toss_decision = bat. However, if toss_winner = team2, then toss_decision = field.
-alter table matches add column venue_id smallint default null after city;
-update matches as m, venues as v set m.venue_id= v.venue_id where m.city = v.city and m.venue= v.stadium;
-alter table matches drop column dl_applied, drop column city, drop COLUMN venue, drop column toss_decision;
-
 CREATE TABLE IF NOT EXISTS teams (
   team_id SMALLINT unsigned NOT NULL AUTO_INCREMENT,
   team_name varchar(45) DEFAULT NULL,
@@ -179,6 +175,12 @@ UPDATE teams SET parent_team_id = '12', team_short_name = 'RPS', home_stadium1 =
 UPDATE teams SET parent_team_id = '14', team_short_name = 'DC', home_stadium1 = 66, home_stadium2 = 90 WHERE (team_id = '14');
 UPDATE teams SET parent_team_id = '14', team_short_name = 'DC', home_stadium1 = 66, home_stadium2 = 90, status = 0 WHERE (team_id = '8');
 
+#################### USING THE VENUES AND TEAMS TABLE TO REFORMAT MATCHES AND DELIVERIES TABLE ####################
+-- team1 = batting first team always. Thus, team1 column from matches.csv renamed to batting_team1. Also, if toss_winner = team1, then toss_decision = bat. However, if toss_winner = team2, then toss_decision = field.
+alter table matches add column venue_id smallint default null after city;
+update matches as m, venues as v set m.venue_id= v.venue_id where m.city = v.city and m.venue= v.stadium;
+alter table matches drop column dl_applied, drop column city, drop COLUMN venue, drop column toss_decision;
+
 update matches set batting_team2 = (select team_short_name from teams where matches.batting_team2 = teams.team_name);
 update matches set batting_team1 = (select team_short_name from teams where matches.batting_team1 = teams.team_name);
 update matches set toss_winner = (select team_short_name from teams where matches.toss_winner = teams.team_name) where toss_winner != 'NR';
@@ -192,12 +194,14 @@ insert into deliveries (match_id, inning, batting_team, bowling_team, `over`, ba
 		(778,4,'Kolkata Knight Riders', 'Delhi Capitals',1,3,'AD Russell','KD Karthik','K Rabada',1,0,0,0,0,0,0,0,0,'AD Russell', 'bowled',''),
 		(819,3,'Sunrisers Hyderabad','Mumbai Indians',1,1,'MK Pandey','Mohammad Nabi','JJ Bumrah',1,0,0,0,0,0,1,0,1,'MK Pandey','run out','KH Pandya'),
 		(819,3,'Sunrisers Hyderabad','Mumbai Indians',1,4,'Mohammad Nabi','MJ Guptill','JJ Bumrah',1,0,0,0,0,0,0,0,0,'Mohammad Nabi','bowled','');        
+drop table if exists super_over_balls;
 create table if not exists super_over_balls as select * from deliveries where is_super_over = 1; 
 alter TABLE super_over_balls drop COLUMN `over`, drop COLUMN is_super_over; 
 update super_over_balls,teams set batting_team = team_short_name where super_over_balls.batting_team = teams.team_name;
 update super_over_balls set bowling_team = (select team_short_name from teams where super_over_balls.bowling_team = teams.team_name);
 delete from deliveries where is_super_over = 1;
 alter TABLE deliveries drop column is_super_over, drop COLUMN batting_team, drop COLUMN bowling_team; 
+
 -- Add rows for super_overs in 2020 season
 
 #################### REFORMATTING DELIVERIES BASE TABLE TO MAKE IT COHERENT WITH THE NEW_DELIVERIES DATASET ####################
@@ -295,3 +299,6 @@ update matches set team1_match_type = case
  		when year(date) =2018 and venue_id = 95 then if (batting_team1 = 'CSK', 'home', 'away') 
         else 'neutral'
     end where team1_match_type = 'neutral' and year(date)!= 2009;
+
+-- 20 matches in UAE in 2014 and 3 other neutral matches = 23 neutral matches 
+select * from matches where team1_match_type = team2_match_type and year(date) not in (2009,2020) and team1_match_type = 'neutral';

@@ -39,6 +39,9 @@ update deliveries set player_dismissed = 'S Dhawan', dismissal_kind = 'stumped',
 update deliveries set player_dismissed = 'DJ Hooda', dismissal_kind = 'run out', fielder = 'RR Pant',total_runs = 2, extra_runs = 1, extras_type = 'wides' where ball_id = 178465; -- 826, (includes extra runs duplicated in batsman_runs and total_runs)
 
 -- for 2020 > seasons > 2017, extra_runs wrongly added to batsman runs as well .. hence, batsman_runs = batsman_runs - extra_runs
+-- to check whether batsman runs are always getting added with extra_runs for season > 2017 for wide_runs, bye_runs, legbye_runs, noball_runs
+select ball_id, match_id, inning, `over`, ball, batsman_runs, extra_runs, total_runs, extras_type, extra_runs = total_runs from deliveries where extra_runs != 0 and extras_type like 'wides%' and match_id >600;
+
 update deliveries set batsman_runs = batsman_runs - extra_runs where (match_id between 709 and 828) and ball_id not in (165872,172382,178514);
 update deliveries set total_runs = batsman_runs + extra_runs where (match_id between 709 and 828) and ball_id not in (165872,172382,178514);
 
@@ -57,6 +60,59 @@ update deliveries set player_dismissed = 'CH Gayle', dismissal_kind = 'retired h
 update deliveries set player_dismissed = 'R Salam', dismissal_kind = 'retired hurt' where ball_id = 165453;
 update deliveries set player_dismissed = 'CA Lynn', dismissal_kind = 'retired hurt' where ball_id = 171642;
 
+-- Nitin and Navdeep Saini
+UPDATE deliveries d join matches using (match_id) set player_dismissed = 'Nitin Saini' where year(date) = 2012 and player_dismissed = 'N Saini'; -- 10
+UPDATE deliveries d join matches using (match_id) set batsman = 'Nitin Saini' where year(date) = 2012 and batsman = 'N Saini'; -- 143
+UPDATE deliveries d join matches using (match_id) set non_striker = 'Nitin Saini' where year(date) = 2012 and non_striker = 'N Saini'; -- 122
+UPDATE deliveries d join matches using (match_id) set fielder = 'Nitin Saini' where year(date) = 2012 and fielder = 'N Saini\r'; -- 14
+
+update deliveries set batsman = 'Arjun Yadav' where batsman = 'AS Yadav' and match_id BETWEEN 1 and 61; -- 40 times
+update deliveries set non_striker = 'Arjun Yadav' where non_striker = 'AS Yadav' and match_id BETWEEN 1 and 61; -- 38 times
+update deliveries set fielder = 'Arjun Yadav' where fielder = 'AS Yadav\r' and match_id BETWEEN 1 and 61; -- 2 times
+update deliveries set player_dismissed = 'Arjun Yadav' where player_dismissed = 'AS Yadav' and match_id BETWEEN 1 and 61; -- 5 times
+
+update deliveries set bowler = 'HS Baddhan' where bowler like '%(2)%'; -- 25 times
+
+update deliveries set batsman = 'Abhishek Sharma' where batsman = 'Ankit Sharma' and match_id BETWEEN 751 and 828; -- 35 + 10 (2019)
+update deliveries set non_striker = 'Abhishek Sharma' where non_striker = 'Ankit Sharma' and match_id BETWEEN 751 and 828; -- 23 + 12(2019)
+update deliveries set fielder = 'Abhishek Sharma' where fielder = 'Ankit Sharma\r' and match_id BETWEEN 760 and 828; -- 1+ 1 
+update deliveries set bowler = 'Abhishek Sharma' where bowler = 'Ankit Sharma' and match_id BETWEEN 769 and 828; -- 13 from 2019 season
+update deliveries set player_dismissed = 'Abhishek Sharma' where player_dismissed = 'Ankit Sharma' and match_id BETWEEN 751 and 900; -- 1 + 2 
+
+update deliveries set bowler = 'Arshdeep Singh' where bowler = 'A Singh' and match_id in (800, 816, 820); -- 65 from 2019 season
+
+update deliveries set batsman = 'PR Barman' where batsman = 'P R Barman'; -- 25
+update deliveries set non_striker = 'PR Barman' where non_striker = 'P R Barman'; -- 22 
+update deliveries set bowler = 'PR Barman' where bowler = 'P R Barman'; -- 24
+update deliveries set player_dismissed = 'PR Barman' where player_dismissed = 'P R Barman'; -- 779
+
+with cte1 as 
+(select year(m.date) season, batting_team1 team, batsman, sum(position) sum_pos, sum(case when position is not null then 1 else null end) innings, count(b.match_id) match_played from match_batsman_scorecards b join matches m on m.match_id = b.match_id WHERE inning =1 group by year(m.date), batting_team1, batsman), cte2 as 
+(select year(m.date) season, batting_team2 team, batsman, sum(position) sum_pos, sum(case when position is not null then 1 else null end) innings, count(b.match_id) match_played from match_batsman_scorecards b join matches m on m.match_id = b.match_id WHERE inning =2 group by year(m.date), batting_team2, batsman)
+select season, team, batsman, round((cte1.sum_pos + cte2.sum_pos)/(cte1.innings+ cte2.innings)) avg_pos, cte1.match_played + cte2.match_played matches_played from cte1 join cte2 using (season, team, batsman);
+
+
+-- checking for duplicate names
+with cte1 as
+(select match_id, year(date) season, result_type, batsman, batting_team1 from deliveries d join matches m using (match_id) where inning = 1 union
+select match_id, year(date) season, result_type, non_striker, batting_team1 from deliveries d join matches m using (match_id) where inning = 1 union
+select match_id, year(date) season, result_type, bowler, batting_team1 from deliveries d join matches m using (match_id) where inning = 2 union
+select match_id, year(date) season, result_type, fielder, batting_team1 from deliveries d join matches m using (match_id) where inning = 2 and fielder is not null and fielder not like '%(sub)%'), cte2 as
+(select match_id, year(date) season, result_type, batsman, batting_team2 from deliveries d join matches m using (match_id) where inning = 2 union
+select match_id, year(date) season, result_type, non_striker, batting_team2 from deliveries d join matches m using (match_id) where inning = 2 union
+select match_id, year(date) season, result_type, bowler, batting_team2 from deliveries d join matches m using (match_id) where inning = 1 union
+select match_id, year(date) season, result_type, fielder, batting_team2 from deliveries d join matches m using (match_id) where inning = 1  and fielder is not null and fielder not like '%(sub)%')
+-- select season, batting_team1, batsman from cte1 union select season, batting_team2, batsman from cte2 ORDER BY season, batting_team1; -- SQUAD LIST FOR SEASON. Change order by to batsman, and batsman seasons will be obtained
+-- select season, batting_team1, count(batsman) from (select season, batting_team1, batsman from cte1 union select season, batting_team2, batsman from cte2 ) as t group BY season, batting_team1; -- experimentations by season for each team
+select match_id, season, batting_team1, result_type, count(batsman) tot from cte1 GROUP BY match_id, batting_team1 having tot!=11 union all select match_id, season, batting_team2, result_type, count(batsman) tot from cte2 GROUP BY match_id, batting_team2 having tot!=11; -- matches with errors in match_squads
+
+-- find players playing for 2 teams in a single season
+with cte1 as 
+(select year(m.date) season, batting_team1 team, batsman, sum(position) sum_pos, sum(case when position is not null then 1 else null end) innings, count(b.match_id) match_played from match_batsman_scorecards b join matches m on m.match_id = b.match_id WHERE inning =1 group by year(m.date), batting_team1, batsman), cte2 as 
+(select year(m.date) season, batting_team2 team, batsman, sum(position) sum_pos, sum(case when position is not null then 1 else null end) innings, count(b.match_id) match_played from match_batsman_scorecards b join matches m on m.match_id = b.match_id WHERE inning =2 group by year(m.date), batting_team2, batsman)
+select season, batsman, count(cte1.team) as h, cte1.team from cte1 join cte2 using (season, batsman) group by season, batsman having h != 1;
+
+
 #################### UPDATING MATCHES TABLE WITH INNINGS' SCORES ####################
 update matches as m join (select match_id, sum(total_runs) as total1 from deliveries where inning = 1 group by match_id) as d on m.match_id = d.match_id set team1_runs = total1;
 update matches as m join (select match_id, sum(total_runs) as total2 from deliveries where inning = 2 group by match_id) as d on m.match_id = d.match_id set team2_runs = total2;
@@ -68,96 +124,5 @@ update matches as m join (select match_id, floor(count(ball)/6) + round((count(b
 update matches as m join (select match_id, count(ball) as wickets from deliveries where player_dismissed is not null and inning =1 and dismissal_kind != 'retired hurt' group by match_id) as d on m.match_id = d.match_id set team1_wickets = wickets;
 update matches as m join (select match_id, count(ball) as wickets from deliveries where player_dismissed is not null and inning =2 and dismissal_kind != 'retired hurt' group by match_id) as d on m.match_id = d.match_id set team2_wickets = wickets;
 
-#################### POINTS TABLE####################
-drop table if exists points_table;
-drop table if exists team_season_matches;
-
-CREATE TABLE IF NOT EXISTS points_table (
-  entry_id int unsigned NOT NULL AUTO_INCREMENT,
-  season mediumint NOT NULL,
-  team varchar(45) NOT NULL,
-  matches_played smallint DEFAULT 0,
-  points smallint DEFAULT 0,
-  wins smallint DEFAULT 0,
-  losses smallint DEFAULT 0,
-  no_results smallint DEFAULT 0,
-  for_runs mediumint DEFAULT 0,
-  for_wickets mediumint DEFAULT 0,
-  for_overs decimal(5,1) DEFAULT 0.0,
-  away_runs mediumint DEFAULT 0,
-  away_wickets mediumint DEFAULT 0,
-  away_overs decimal(5,1) DEFAULT 0.0,
-  net_run_rate decimal(5,4) as (for_runs/for_overs - away_runs/away_overs),
-  tosses_won smallint DEFAULT 0,
-  longest_win_streak smallint DEFAULT 0,
-  longest_loss_streak smallint DEFAULT 0,
-  potm_awards smallint DEFAULT 0,
-  PRIMARY KEY (entry_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE TABLE IF NOT EXISTS team_season_matches (
-  entry_id int NOT NULL AUTO_INCREMENT,
-  team varchar(45) DEFAULT NULL,
-  match_id mediumint DEFAULT NULL,
-  season smallint DEFAULT NULL,
-  match_date date DEFAULT NULL,
-  match_time varchar(45) DEFAULT NULL,
-  match_type varchar(45) DEFAULT NULL,
-  toss_winner varchar(45) DEFAULT NULL,
-  result varchar(45) DEFAULT NULL,
-  winner smallint DEFAULT NULL,
-  runs_scored smallint unsigned DEFAULT NULL,
-  wickets_fallen smallint DEFAULT NULL,
-  overs_played decimal(3,1) DEFAULT NULL,
-  opp_runs smallint unsigned DEFAULT NULL,
-  opp_wickets smallint DEFAULT NULL,
-  opp_overs decimal(3,1) DEFAULT NULL,
-  PRIMARY KEY (entry_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-###########################################################################################
-
-DROP PROCEDURE if exists getSeasonStats;
-DELIMITER $$
-CREATE PROCEDURE getSeasonStats (IN  team varchar(10))
-BEGIN 
-
--- FOR NET RUN RATE CALCULATION (NOT CONSIDERING DL-APPLIED/ NO-RESULT MATCHES)
--- If a teams gets all out within X (<20) overs, irrespective of the innings, then it will be counted as 20 overs 
--- Howeverm if a team successfully chases a target, then the overs added in their For (and opponent's away) tally will be the overs required by them to chase the total 
-
-drop table if exists team_stats;
-create temporary table team_stats
-select batting_team1, match_id, year(date) season, `date`,`time`, team1_match_type,toss_winner, result_type, (case when winner = team then 2 when winner ='NR' then 1 else 0 end) points, team1_runs, team1_wickets, if(team1_wickets != 10, team1_overs, 20.0) as team1_overs, team2_runs, team2_wickets, if(team2_wickets != 10, team2_overs, 20.0) as team2_overs from matches WHERE batting_team1 = team and team1_match_type not in ('final','3rd place','semifinals','eliminator') union 
-select batting_team2, match_id, year(date) season, `date`,`time`, team2_match_type,toss_winner, result_type, (case when winner = team then 2 when winner ='NR' then 1 else 0 end) points, team2_runs, team2_wickets, if(team2_wickets != 10, team2_overs, 20.0) as team2_overs, team1_runs, team1_wickets, if(team1_wickets != 10, team1_overs, 20.0) as team1_overs from matches WHERE batting_team2 = team and team2_match_type not in ('final','3rd place','semifinals','eliminator');
-
-insert into team_season_matches (`team`,`match_id`,`season`,`match_date`,`match_time`,`match_type`,toss_winner,`result`,`winner`,`runs_scored`,`wickets_fallen`,`overs_played`,`opp_runs`,`opp_wickets`,`opp_overs`)
-select * from team_stats;
-
-insert into points_table (`season`,`team`,`matches_played`,`points` ,`wins`,`losses`,`no_results`,`for_runs`,`for_wickets`,`for_overs`,`away_runs`,`away_wickets`,`away_overs`,`tosses_won`)
-select season, batting_team1, count(match_id) played, sum(points) total_points, 
-	count(case when points = 2 then 1 else null end) wins,
-	count(case when points = 0 then 1 else null end) losses,
-	count(case when points = 1 then 1 else null end) no_results,
-    sum(team1_runs) runs_for, sum(team1_wickets) wickets_for, round(floor(sum(floor(team1_overs)*6 + (team1_overs*10)%10)/6) + (sum(floor(team1_overs)*6 + (team1_overs*10)%10)%6)/10,1) as overs_for,
-    sum(team2_runs) runs_against, sum(team2_wickets) wickets_against, round(floor(sum(floor(team2_overs)*6 + (team2_overs*10)%10)/6) + (sum(floor(team2_overs)*6 + (team2_overs*10)%10)%6)/10,1) overs_against,count(case when toss_winner = team then 1 else null end) tosses_won from team_stats group by season;
-
--- insert into detailed_team_stats
--- select season, team1_match_type, sum(points), sum(team1_runs), sum(team1_wickets), floor(sum(floor(team1_overs)*6 + (team1_overs*10)%10)/6) + (sum(floor(team1_overs)*6 + (team1_overs*10)%10)%6), sum(team2_runs), sum(team2_wickets), sum(floor(team1_overs)*6 + (team1_overs*10)%10) from team_stats group by season, team1_match_type;
-
-drop table team_stats;
-END $$
-Delimiter ;
-
--- Loop team_short_name for each parent_id = team_id
-call getSeasonStats('KKR');
-call getSeasonStats('CSK');
-call getSeasonStats('DC');
-call getSeasonStats('MI');
-call getSeasonStats('SRH');
-call getSeasonStats('RPS');
-call getSeasonStats('KTK');
-call getSeasonStats('GC');
-call getSeasonStats('RCB');
-call getSeasonStats('KXIP');
-call getSeasonStats('RR');
+-- checking whether win_by_runs/wickets columns matches the winning margin generated using the calculated innings score
+select match_id, year(date), result_type, batting_team1, batting_team2, team1_runs, team1_wickets, team2_runs, team2_wickets, win_type, win_margin, if (team2_runs>=team1_runs,10 - team2_wickets, team1_runs- team2_runs) as win_margin_calc, (if(team2_runs>=team1_runs,10 - team2_wickets, team1_runs- team2_runs)) = win_margin as test from matches where result_type not in ('tie','no result', 'DL applied') order by date;
