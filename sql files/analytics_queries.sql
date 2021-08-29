@@ -27,3 +27,12 @@ select bowler,max(runs_conceded),count(*) innings,sum(fours) + sum(sixes) bounda
 select season, bowler,max(runs_conceded),count(*) innings, sum(wickets) wickets, round(sum(runs_conceded)/sum(balls)*6,2) economy_rate,count(case when runs_conceded >= 50 then 1 else null end) as dinda_innings from match_bowler_scorecards as b join matches as m using (match_id) group by bowler,season having innings > 6 order by economy_rate; 
 
 -- CASES WHERE BOWLER DOT BALL % LESS THAN AVG DOT BALL % AT THAT VENUE
+
+
+
+-- top 150 batsman
+-- top 150 bowlers
+-- top 50 young players
+-- major batsmen against major bowlers (include power play vs non-power play)
+-- young players against major batsmen (include power play vs non-power play)
+-- young players against major bowlers (include power play vs non-power play)

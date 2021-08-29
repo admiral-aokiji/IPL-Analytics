@@ -164,22 +164,26 @@ update points_table set for_overs = round(floor(for_balls/6) + (for_balls%6)/10,
 update points_table p join (SELECT season, team, points, net_run_rate, ROW_NUMBER() over (PARTITION BY season ORDER BY points desc, net_run_rate desc) t_rank from points_table) t on p.season = t.season and p.team = t.team set table_rank = t.t_rank ;
 alter table points_table drop column for_balls, drop column away_balls;
 
-select * from players where bowling_style = 'Right Arm Offbreak/ Legbreak Googly';
 
 #################### POWERPLAY AND DEATH-OVER TABLES ####################
-DROP TABLE IF EXISTS powerplay_bowlers;
-CREATE TABLE IF NOT EXISTS powerplay_bowlers
-select match_id, inning, bowler, sum(balls) as balls,sum(maiden) maidens, (sum(near_maiden) - sum(maiden)) near_maidens, sum(runs) runs_conceded, sum(wickets) wickets, sum(dot_balls) dots, sum(singles) singles, sum(doubles) doubles, sum(triples) triples, sum(fours) fours, sum(sixes) sixes, sum(extras) - sum(wide_runs) - sum(noball_runs) bat_extras, sum(wide_runs) wide_runs, sum(noball_runs) noball_runs from (select match_id, inning, bowler, over_no, balls, runs, wickets, extras, dot_balls, singles, doubles, triples, fours, sixes, wide_runs, noball_runs, (runs = legbye_runs + bye_runs and balls = 6) maiden, (dot_balls > 4) near_maiden from match_over_scorecards where over_no < 7) as t group by match_id, inning, bowler; 
-ALTER TABLE powerplay_bowlers add COLUMN bowler_pp_id int NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, add column overs decimal (3,1) as (floor(balls/6) + round((balls%6)/10,1)) AFTER bowler;
+CREATE VIEW powerplay_bowlers as
+select match_id, inning, bowler, (floor(sum(balls)/6) + round((sum(balls)%6)/10,1)) overs, sum(balls) as balls,sum(maiden) maidens, (sum(near_maiden) - sum(maiden)) near_maidens, sum(runs) runs_conceded, sum(wickets) wickets, sum(dot_balls) dots, sum(singles) singles, sum(doubles) doubles, sum(triples) triples, sum(fours) fours, sum(sixes) sixes, sum(extras) - sum(wide_runs) - sum(noball_runs) bat_extras, sum(wide_runs) wide_runs, sum(noball_runs) noball_runs from (select match_id, inning, bowler, over_no, balls, runs, wickets, extras, dot_balls, singles, doubles, triples, fours, sixes, wide_runs, noball_runs, (runs = legbye_runs + bye_runs and balls = 6) maiden, (dot_balls > 4) near_maiden from match_over_scorecards join matches using (match_id) where over_no < 7 and result_type not in ('no result','DL applied')) as t group by match_id, inning, bowler; 
 
-DROP TABLE IF EXISTS death_over_bowlers;
-CREATE TABLE IF NOT EXISTS death_over_bowlers
-select match_id, inning, bowler, sum(balls) as balls,sum(maiden) maidens, (sum(near_maiden) - sum(maiden)) near_maidens, sum(runs) runs_conceded, sum(wickets) wickets, sum(dot_balls) dots, sum(singles) singles, sum(doubles) doubles, sum(triples) triples, sum(fours) fours, sum(sixes) sixes, sum(extras) - sum(wide_runs) - sum(noball_runs) bat_extras, sum(wide_runs) wide_runs, sum(noball_runs) noball_runs from (select match_id, inning, bowler, over_no, balls, runs, wickets, extras, dot_balls, singles, doubles, triples, fours, sixes, wide_runs, noball_runs, (runs = legbye_runs + bye_runs and balls = 6) maiden, (dot_balls > 4) near_maiden from match_over_scorecards where over_no > 16) as t group by match_id, inning, bowler; 
-ALTER TABLE death_over_bowlers add COLUMN bowler_do_id int NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST, add column overs decimal (3,1) as (floor(balls/6) + round((balls%6)/10,1)) AFTER bowler;
+CREATE VIEW death_over_bowlers as 
+select match_id, inning, bowler, (floor(sum(balls)/6) + round((sum(balls)%6)/10,1)) overs, sum(balls) as balls,sum(maiden) maidens, (sum(near_maiden) - sum(maiden)) near_maidens, sum(runs) runs_conceded, sum(wickets) wickets, sum(dot_balls) dots, sum(singles) singles, sum(doubles) doubles, sum(triples) triples, sum(fours) fours, sum(sixes) sixes, sum(extras) - sum(wide_runs) - sum(noball_runs) bat_extras, sum(wide_runs) wide_runs, sum(noball_runs) noball_runs from (select match_id, inning, bowler, over_no, balls, runs, wickets, extras, dot_balls, singles, doubles, triples, fours, sixes, wide_runs, noball_runs, (runs = legbye_runs + bye_runs and balls = 6) maiden, (dot_balls > 4) near_maiden from match_over_scorecards join matches using (match_id) where over_no > 16 and result_type not in ('no result','DL applied')) as t group by match_id, inning, bowler; 
+
+CREATE VIEW middle_over_bowlers as
+select match_id, inning, bowler, (floor(sum(balls)/6) + round((sum(balls)%6)/10,1)) overs, sum(balls) as balls,sum(maiden) maidens, (sum(near_maiden) - sum(maiden)) near_maidens, sum(runs) runs_conceded, sum(wickets) wickets, sum(dot_balls) dots, sum(singles) singles, sum(doubles) doubles, sum(triples) triples, sum(fours) fours, sum(sixes) sixes, sum(extras) - sum(wide_runs) - sum(noball_runs) bat_extras, sum(wide_runs) wide_runs, sum(noball_runs) noball_runs from (select match_id, inning, bowler, over_no, balls, runs, wickets, extras, dot_balls, singles, doubles, triples, fours, sixes, wide_runs, noball_runs, (runs = legbye_runs + bye_runs and balls = 6) maiden, (dot_balls > 4) near_maiden from match_over_scorecards join matches using (match_id) where over_no >= 6 and over_no <= 16 and result_type not in ('no result','DL applied')) as t group by match_id, inning, bowler; 
+
+-- Add for DL applied matches with corresponding pp over values
 
 drop table if exists death_over_batsmen;
 create TABLE death_over_batsmen like match_batsman_scorecards;
 alter table death_over_batsmen rename column batsman_inning_id TO batsman_do_id;
+
+drop table if exists middle_over_batsmen;
+create TABLE middle_over_batsmen like match_batsman_scorecards;
+alter table middle_over_batsmen rename column batsman_inning_id TO batsman_mo_id;
 
 drop table if exists powerplay_batsmen;
 create TABLE powerplay_batsmen like match_batsman_scorecards;
@@ -188,11 +192,14 @@ alter table powerplay_batsmen rename column batsman_inning_id TO batsman_pp_id;
 call getBatsmanStats('powerplay_batsmen', 1, 300, 1, 6);
 call getBatsmanStats('powerplay_batsmen', 301, 600, 1, 6);
 call getBatsmanStats('powerplay_batsmen', 601, 900, 1, 6);
+call getBatsmanStats('middle_over_batsmen', 1, 300, 7, 16);
+call getBatsmanStats('middle_over_batsmen', 301, 600, 7, 16);
+call getBatsmanStats('middle_over_batsmen', 601, 900, 7, 16);
 call getBatsmanStats('death_over_batsmen', 1, 300, 17, 20);
 call getBatsmanStats('death_over_batsmen', 301, 600, 17, 20);
 call getBatsmanStats('death_over_batsmen', 601, 900, 17, 20);
 
-update powerplay_batsmen s join (select match_id, inning, sum(total_runs) as pp_runs from deliveries2 where `over` < 7 group by match_id, inning) m using (match_id, inning) set dismissal_type = 'NO', bowler = 'NO', runs_on_dismissal = m.pp_runs where s.dismissal_type is null;
+update powerplay_batsmen s join (select match_id, inning, sum(total_runs) as pp_runs from deliveries where `over` < 7 group by match_id, inning) m using (match_id, inning) set dismissal_type = 'NO', bowler = 'NO', runs_on_dismissal = m.pp_runs where s.dismissal_type is null;
 update powerplay_batsmen set runs_on_arrival = 0, overs_on_arrival = 0.0 where position in (1,2);
 
 -- first update positions from match_batsman_scorecard
@@ -201,10 +208,3 @@ update death_over_batsmen set runs_on_arrival = 0, overs_on_arrival = 0.0 where 
 select * from powerplay_batsmen s join (select match_id, inning, sum(total_runs) as pp_runs from deliveries2 where `over` < 7 group by match_id, inning) m using (match_id, inning);
 
 -- delete DL_applied matches and add them a fresh
-
--- top 150 batsman
--- top 150 bowlers
--- top 50 young players
--- major batsmen against major bowlers (include power play vs non-power play)
--- young players against major batsmen (include power play vs non-power play)
--- young players against major bowlers (include power play vs non-power play)

@@ -17,13 +17,17 @@ MoneyBall | <a href='https://cricsheet.org/matches/'>IPL Player Salaries</a> | P
 - Pitch report on the specific match day
 - Correlating with performances on the international circuit and other famous T20 leagues
 - Ball by ball pitching and hitting direction coordinates 
-
-### NEXT COMMIT OBJECTIVES:
-- Fantasy points for each player for each match
+- Fantasy points for each player for each match based on stage of innings and team's situation
 - Team Rivalries
 - Player Rivalries
 - Top Young Prospects for each season
 - Top 50/100 players for each player role
+
+### NEXT COMMIT OBJECTIVES:
+- Views for batsmen performances in various stages of innings
+- Ball by ball pitching and hitting direction coordinates 
+- Fantasy points for each player for each match based on stage of innings and team's situation
+
 
 ### Errors remaining:
 - (runs_on_dismissal, overs_on_dismissal) and (runs_on_arrival, overs_on_arrival) do not match because of addition of runs on the 1st ball a new batsman faces
@@ -80,4 +84,4 @@ MoneyBall | <a href='https://cricsheet.org/matches/'>IPL Player Salaries</a> | P
 
 10. "5 - points table, powerplay and death-overs tables.sql"
    - Created **Points Table** with Net Run Rates for each teams, and **Detailed Matches** tables
-   - Created special tables for player performances in the powerplay, middle and death overs
+   - Created special views for player performances in the powerplay, middle and death overs
